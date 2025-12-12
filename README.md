@@ -1,4 +1,4 @@
-# 🛡️ Safe Route Finder
+# 🛡️ Namma Daari
 
 A modern web application that helps you find the safest routes in Bengaluru by analyzing crime data and providing safety scores for alternative routes.
 
@@ -96,14 +96,3 @@ mf/
 - [ ] Save favorite routes
 - [ ] Share routes with others
 - [ ] Mobile app version
-
-## License
-
-MIT
-
-## Acknowledgments
-
-Inspired by similar projects:
-- [Mystique-SafestRoute](https://github.com/Madhav6541/Mystique-SafestRoute)
-- [Stroll-Safely](https://github.com/Munnu/Stroll-Safely)
-- [Trippin](https://github.com/nikhil-sachdeva/Trippin)

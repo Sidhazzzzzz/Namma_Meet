@@ -1,11 +1,124 @@
 /**
  * Route Service
- * Fetches routes from OSRM API
+ * Fetches routes from OSRM API with fallback servers
  */
 
 import { HOSPITALS, POLICE_STATIONS } from './facilityData.js';
 
-const OSRM_BASE_URL = '/api/osrm';
+// OSRM server endpoints - all via Vite proxy to avoid CORS issues
+const OSRM_SERVERS = [
+    '/api/osrm',   // Primary: router.project-osrm.org
+    '/api/osrm2',  // Fallback 1: routing.openstreetmap.de (car)
+    '/api/osrm3'   // Fallback 2: router.project-osrm.org (retry)
+];
+
+// Retry configuration for transient errors
+const MAX_RETRIES = 2;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+
+/**
+ * Delay helper for retry logic
+ * @param {number} ms - Milliseconds to delay
+ * @returns {Promise<void>}
+ */
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch with timeout
+ * @param {string} url - URL to fetch
+ * @param {number} timeout - Timeout in ms
+ * @returns {Promise<Response>}
+ */
+async function fetchWithTimeout(url, timeout = 10000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out');
+        }
+        throw error;
+    }
+}
+
+/**
+ * Fetch with retry logic for transient errors (502, 503, 504)
+ * @param {string} url - URL to fetch
+ * @param {number} retries - Number of retries remaining
+ * @param {number} retryDelay - Current retry delay in ms
+ * @returns {Promise<Response>}
+ */
+async function fetchWithRetry(url, retries = MAX_RETRIES, retryDelay = INITIAL_RETRY_DELAY) {
+    try {
+        const response = await fetchWithTimeout(url, 10000);
+
+        // Check for retryable server errors
+        if ((response.status === 502 || response.status === 503 || response.status === 504) && retries > 0) {
+            console.warn(`OSRM API returned ${response.status}, retrying in ${retryDelay}ms... (${retries} retries left)`);
+            await delay(retryDelay);
+            return fetchWithRetry(url, retries - 1, retryDelay * 2);
+        }
+
+        return response;
+    } catch (error) {
+        // Network errors (e.g., connection refused, timeout)
+        if (retries > 0) {
+            console.warn(`OSRM fetch failed: ${error.message}, retrying in ${retryDelay}ms... (${retries} retries left)`);
+            await delay(retryDelay);
+            return fetchWithRetry(url, retries - 1, retryDelay * 2);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Try fetching routes from multiple OSRM servers
+ * @param {string} coordinates - Coordinates string in lon,lat;lon,lat format
+ * @param {URLSearchParams} params - Query parameters
+ * @returns {Promise<Object>} Route data
+ */
+async function fetchFromOSRMServers(coordinates, params) {
+    let lastError = null;
+
+    for (let i = 0; i < OSRM_SERVERS.length; i++) {
+        const baseUrl = OSRM_SERVERS[i];
+        const url = `${baseUrl}/route/v1/driving/${coordinates}?${params}`;
+
+        console.log(`Trying OSRM server ${i + 1}/${OSRM_SERVERS.length}: ${baseUrl}`);
+
+        try {
+            const response = await fetchWithRetry(url);
+
+            if (!response.ok) {
+                throw new Error(`OSRM API failed: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (data.code !== 'Ok') {
+                throw new Error(`OSRM error: ${data.message || 'Unknown error'}`);
+            }
+
+            console.log(`Successfully got routes from server ${i + 1}`);
+            return data;
+
+        } catch (error) {
+            console.warn(`OSRM server ${i + 1} failed: ${error.message}`);
+            lastError = error;
+            // Continue to next server
+        }
+    }
+
+    // All servers failed
+    throw lastError || new Error('All OSRM servers failed');
+}
 
 /**
  * Fetch routes between two coordinates
@@ -25,19 +138,7 @@ export async function getRoutes(start, end) {
             alternatives: 'true', // Request alternative routes
         });
 
-        const url = `${OSRM_BASE_URL}/route/v1/driving/${coordinates}?${params}`;
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`OSRM API failed: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        if (data.code !== 'Ok') {
-            throw new Error(`OSRM error: ${data.message || 'Unknown error'}`);
-        }
+        const data = await fetchFromOSRMServers(coordinates, params);
 
         // Return all routes (main + alternatives)
         return data.routes.map((route, index) => ({
@@ -210,7 +311,7 @@ export function findNearestFacilities(routeGeometry) {
         POLICE_STATIONS.forEach(station => {
             const dist = haversineDistance(lat, lon, station.lat, station.lon);
             if (dist < nearestPolice.distance) {
-                nearestPolice = { distance: dist, name: station.name || 'Police Station' };
+                nearestPolice = { distance: dist, name: station.area || 'Police Station' };
             }
         });
     }

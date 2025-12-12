@@ -506,180 +506,48 @@ export const HOSPITALS = [
 ];
 
 export const POLICE_STATIONS = [
-    {
-        "lat": 12.958,
-        "lon": 77.669
-    },
-    {
-        "lat": 12.9201,
-        "lon": 77.6514
-    },
-    {
-        "lat": 12.9175,
-        "lon": 77.61
-    },
-    {
-        "lat": 12.8394,
-        "lon": 77.6615
-    },
-    {
-        "lat": 12.8385,
-        "lon": 77.684
-    },
-    {
-        "lat": 13.0197,
-        "lon": 77.6405
-    },
-    {
-        "lat": 13.0088,
-        "lon": 77.6933
-    },
-    {
-        "lat": 12.9698,
-        "lon": 77.75
-    },
-    {
-        "lat": 12.9569,
-        "lon": 77.7011
-    },
-    {
-        "lat": 12.9352,
-        "lon": 77.6245
-    },
-    {
-        "lat": 12.9719,
-        "lon": 77.64
-    },
-    {
-        "lat": 12.975,
-        "lon": 77.605
-    },
-    {
-        "lat": 12.9783,
-        "lon": 77.5928
-    },
-    {
-        "lat": 12.971,
-        "lon": 77.607
-    },
-    {
-        "lat": 12.929,
-        "lon": 77.585
-    },
-    {
-        "lat": 12.901,
-        "lon": 77.5855
-    },
-    {
-        "lat": 12.912,
-        "lon": 77.56
-    },
-    {
-        "lat": 12.991,
-        "lon": 77.554
-    },
-    {
-        "lat": 13.0004,
-        "lon": 77.569
-    },
-    {
-        "lat": 13.035,
-        "lon": 77.591
-    },
-    {
-        "lat": 13.099,
-        "lon": 77.596
-    },
-    {
-        "lat": 13.019,
-        "lon": 77.603
-    },
-    {
-        "lat": 13.03,
-        "lon": 77.578
-    },
-    {
-        "lat": 12.97,
-        "lon": 77.53
-    },
-    {
-        "lat": 12.9705,
-        "lon": 77.512
-    },
-    {
-        "lat": 12.9125,
-        "lon": 77.483
-    },
-    {
-        "lat": 12.721,
-        "lon": 77.28
-    },
-    {
-        "lat": 12.784,
-        "lon": 77.758
-    },
-    {
-        "lat": 12.711,
-        "lon": 77.695
-    },
-    {
-        "lat": 12.9115,
-        "lon": 77.685
-    },
-    {
-        "lat": 12.925,
-        "lon": 77.678
-    },
-    {
-        "lat": 12.915,
-        "lon": 77.64
-    },
-    {
-        "lat": 12.938,
-        "lon": 77.627
-    },
-    {
-        "lat": 12.9755,
-        "lon": 77.6408
-    },
-    {
-        "lat": 12.9705,
-        "lon": 77.737
-    },
-    {
-        "lat": 12.9575,
-        "lon": 77.7015
-    },
-    {
-        "lat": 12.917,
-        "lon": 77.6105
-    },
-    {
-        "lat": 12.891,
-        "lon": 77.601
-    },
-    {
-        "lat": 12.9155,
-        "lon": 77.6505
-    },
-    {
-        "lat": 12.919,
-        "lon": 77.642
-    },
-    {
-        "lat": 12.962,
-        "lon": 77.58
-    },
-    {
-        "lat": 12.978,
-        "lon": 77.572
-    },
-    {
-        "lat": 13.017,
-        "lon": 77.556
-    },
-    {
-        "lat": 13.029,
-        "lon": 77.515
-    }
+    { "area": "HAL Airport", "lat": 12.958, "lon": 77.669 },
+    { "area": "HSR Layout", "lat": 12.9201, "lon": 77.6514 },
+    { "area": "Koramangala", "lat": 12.9175, "lon": 77.61 },
+    { "area": "Electronic City", "lat": 12.8394, "lon": 77.6615 },
+    { "area": "Bommanahalli", "lat": 12.8385, "lon": 77.684 },
+    { "area": "Kalyan Nagar", "lat": 13.0197, "lon": 77.6405 },
+    { "area": "KR Puram", "lat": 13.0088, "lon": 77.6933 },
+    { "area": "Whitefield", "lat": 12.9698, "lon": 77.75 },
+    { "area": "Marathahalli", "lat": 12.9569, "lon": 77.7011 },
+    { "area": "BTM Layout", "lat": 12.9352, "lon": 77.6245 },
+    { "area": "Indiranagar", "lat": 12.9719, "lon": 77.64 },
+    { "area": "Ulsoor", "lat": 12.975, "lon": 77.605 },
+    { "area": "Cubbon Park", "lat": 12.9783, "lon": 77.5928 },
+    { "area": "MG Road", "lat": 12.971, "lon": 77.607 },
+    { "area": "Jayanagar", "lat": 12.929, "lon": 77.585 },
+    { "area": "JP Nagar", "lat": 12.901, "lon": 77.5855 },
+    { "area": "Banashankari", "lat": 12.912, "lon": 77.56 },
+    { "area": "Rajajinagar", "lat": 12.991, "lon": 77.554 },
+    { "area": "Malleshwaram", "lat": 13.0004, "lon": 77.569 },
+    { "area": "Sadashivanagar", "lat": 13.035, "lon": 77.591 },
+    { "area": "Yelahanka", "lat": 13.099, "lon": 77.596 },
+    { "area": "Hebbal", "lat": 13.019, "lon": 77.603 },
+    { "area": "Yeshwanthpur", "lat": 13.03, "lon": 77.578 },
+    { "area": "Vijayanagar", "lat": 12.97, "lon": 77.53 },
+    { "area": "Nagarbhavi", "lat": 12.9705, "lon": 77.512 },
+    { "area": "Kengeri", "lat": 12.9125, "lon": 77.483 },
+    { "area": "Ramanagara", "lat": 12.721, "lon": 77.28 },
+    { "area": "Anekal", "lat": 12.784, "lon": 77.758 },
+    { "area": "Chandapura", "lat": 12.711, "lon": 77.695 },
+    { "area": "Sarjapur", "lat": 12.9115, "lon": 77.685 },
+    { "area": "Bellandur", "lat": 12.925, "lon": 77.678 },
+    { "area": "Agara", "lat": 12.915, "lon": 77.64 },
+    { "area": "Madiwala", "lat": 12.938, "lon": 77.627 },
+    { "area": "Domlur", "lat": 12.9755, "lon": 77.6408 },
+    { "area": "Varthur", "lat": 12.9705, "lon": 77.737 },
+    { "area": "Kadugodi", "lat": 12.9575, "lon": 77.7015 },
+    { "area": "Wilson Garden", "lat": 12.917, "lon": 77.6105 },
+    { "area": "Bannerghatta Road", "lat": 12.891, "lon": 77.601 },
+    { "area": "Silk Board", "lat": 12.9155, "lon": 77.6505 },
+    { "area": "Arekere", "lat": 12.919, "lon": 77.642 },
+    { "area": "Lalbagh", "lat": 12.962, "lon": 77.58 },
+    { "area": "Basavanagudi", "lat": 12.978, "lon": 77.572 },
+    { "area": "Peenya", "lat": 13.017, "lon": 77.556 },
+    { "area": "Dasarahalli", "lat": 13.029, "lon": 77.515 }
 ];

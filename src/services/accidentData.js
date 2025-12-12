@@ -1,356 +1,56 @@
 
 // Auto-generated accident data
 export const ACCIDENT_DATA = [
-    {
-        "lat": 12.9754,
-        "lon": 77.622,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9784,
-        "lon": 77.6408,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9974,
-        "lon": 77.6225,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.0139,
-        "lon": 77.6482,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.983,
-        "lon": 77.605,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.0245,
-        "lon": 77.617,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.007,
-        "lon": 77.695,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.1989,
-        "lon": 77.7063,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9698,
-        "lon": 77.75,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9973,
-        "lon": 77.6974,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9763,
-        "lon": 77.5929,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.964,
-        "lon": 77.5965,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9855,
-        "lon": 77.5823,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.961,
-        "lon": 77.5805,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.978,
-        "lon": 77.579,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9585,
-        "lon": 77.5855,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9755,
-        "lon": 77.572,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9685,
-        "lon": 77.575,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.965,
-        "lon": 77.5805,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.014,
-        "lon": 77.562,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.919,
-        "lon": 77.484,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.944,
-        "lon": 77.507,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.969,
-        "lon": 77.532,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9825,
-        "lon": 77.548,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9855,
-        "lon": 77.53,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.0195,
-        "lon": 77.594,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.0355,
-        "lon": 77.597,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.102,
-        "lon": 77.596,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.164,
-        "lon": 77.641,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.199,
-        "lon": 77.71,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.028,
-        "lon": 77.648,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.003,
-        "lon": 77.57,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9885,
-        "lon": 77.553,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.024,
-        "lon": 77.55,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.028,
-        "lon": 77.507,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.05,
-        "lon": 77.542,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 13.07,
-        "lon": 77.485,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.942,
-        "lon": 77.6125,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.917,
-        "lon": 77.619,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.91,
-        "lon": 77.636,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.884,
-        "lon": 77.599,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.959,
-        "lon": 77.571,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.9425,
-        "lon": 77.573,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.925,
-        "lon": 77.593,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.928,
-        "lon": 77.546,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.907,
-        "lon": 77.564,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.852,
-        "lon": 77.505,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.91,
-        "lon": 77.642,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.842,
-        "lon": 77.663,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    },
-    {
-        "lat": 12.927,
-        "lon": 77.676,
-        "severity": 8,
-        "area": "Accident Spot",
-        "description": "Reported accident location"
-    }
+    { "lat": 12.9754, "lon": 77.622, "severity": 7, "area": "Koramangala" },
+    { "lat": 12.9784, "lon": 77.6408, "severity": 8, "area": "Indiranagar" },
+    { "lat": 12.9974, "lon": 77.6225, "severity": 6, "area": "CV Raman Nagar" },
+    { "lat": 13.0139, "lon": 77.6482, "severity": 9, "area": "Kalyan Nagar" },
+    { "lat": 12.983, "lon": 77.605, "severity": 5, "area": "Ulsoor" },
+    { "lat": 13.0245, "lon": 77.617, "severity": 7, "area": "Banaswadi" },
+    { "lat": 13.007, "lon": 77.695, "severity": 8, "area": "KR Puram" },
+    { "lat": 13.1989, "lon": 77.7063, "severity": 10, "area": "Devanahalli" },
+    { "lat": 12.9698, "lon": 77.75, "severity": 9, "area": "Whitefield" },
+    { "lat": 12.9973, "lon": 77.6974, "severity": 6, "area": "Mahadevapura" },
+    { "lat": 12.9763, "lon": 77.5929, "severity": 7, "area": "Cubbon Park" },
+    { "lat": 12.964, "lon": 77.5965, "severity": 5, "area": "Richmond Town" },
+    { "lat": 12.9855, "lon": 77.5823, "severity": 8, "area": "Shivajinagar" },
+    { "lat": 12.961, "lon": 77.5805, "severity": 6, "area": "Sampangi Rama Nagar" },
+    { "lat": 12.978, "lon": 77.579, "severity": 7, "area": "Majestic" },
+    { "lat": 12.9585, "lon": 77.5855, "severity": 9, "area": "Lalbagh" },
+    { "lat": 12.9755, "lon": 77.572, "severity": 5, "area": "Chickpet" },
+    { "lat": 12.9685, "lon": 77.575, "severity": 8, "area": "KR Market" },
+    { "lat": 12.965, "lon": 77.5805, "severity": 6, "area": "City Market" },
+    { "lat": 13.014, "lon": 77.562, "severity": 7, "area": "Malleshwaram" },
+    { "lat": 12.919, "lon": 77.484, "severity": 10, "area": "Kengeri" },
+    { "lat": 12.944, "lon": 77.507, "severity": 8, "area": "Nayandahalli" },
+    { "lat": 12.969, "lon": 77.532, "severity": 6, "area": "Vijayanagar" },
+    { "lat": 12.9825, "lon": 77.548, "severity": 7, "area": "Rajajinagar" },
+    { "lat": 12.9855, "lon": 77.53, "severity": 5, "area": "Basaveshwara Nagar" },
+    { "lat": 13.0195, "lon": 77.594, "severity": 9, "area": "Hebbal" },
+    { "lat": 13.0355, "lon": 77.597, "severity": 8, "area": "Sahakara Nagar" },
+    { "lat": 13.102, "lon": 77.596, "severity": 7, "area": "Yelahanka" },
+    { "lat": 13.164, "lon": 77.641, "severity": 10, "area": "Bagalur" },
+    { "lat": 13.199, "lon": 77.71, "severity": 9, "area": "Hoskote" },
+    { "lat": 13.028, "lon": 77.648, "severity": 6, "area": "Nagawara" },
+    { "lat": 13.003, "lon": 77.57, "severity": 5, "area": "Sadashivanagar" },
+    { "lat": 12.9885, "lon": 77.553, "severity": 8, "area": "Mahalaxmipuram" },
+    { "lat": 13.024, "lon": 77.55, "severity": 7, "area": "Yeshwanthpur" },
+    { "lat": 13.028, "lon": 77.507, "severity": 6, "area": "Peenya" },
+    { "lat": 13.05, "lon": 77.542, "severity": 9, "area": "Jalahalli" },
+    { "lat": 13.07, "lon": 77.485, "severity": 8, "area": "Chikkabanavara" },
+    { "lat": 12.942, "lon": 77.6125, "severity": 7, "area": "BTM Layout" },
+    { "lat": 12.917, "lon": 77.619, "severity": 5, "area": "Madiwala" },
+    { "lat": 12.91, "lon": 77.636, "severity": 10, "area": "HSR Layout" },
+    { "lat": 12.884, "lon": 77.599, "severity": 8, "area": "JP Nagar" },
+    { "lat": 12.959, "lon": 77.571, "severity": 6, "area": "Basavanagudi" },
+    { "lat": 12.9425, "lon": 77.573, "severity": 7, "area": "Jayanagar" },
+    { "lat": 12.925, "lon": 77.593, "severity": 9, "area": "Wilson Garden" },
+    { "lat": 12.928, "lon": 77.546, "severity": 5, "area": "Banashankari" },
+    { "lat": 12.907, "lon": 77.564, "severity": 8, "area": "Kathriguppe" },
+    { "lat": 12.852, "lon": 77.505, "severity": 6, "area": "RR Nagar" },
+    { "lat": 12.91, "lon": 77.642, "severity": 7, "area": "Koramangala 8th Block" },
+    { "lat": 12.842, "lon": 77.663, "severity": 10, "area": "Electronic City" },
+    { "lat": 12.927, "lon": 77.676, "severity": 9, "area": "Bellandur" }
 ];
 
 export function getAccidentData() {

@@ -22,7 +22,30 @@ import { HOSPITALS, POLICE_STATIONS } from './src/services/facilityData.js';
 // ========================================
 const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
 
-async function geocodeLocation(locationString) {
+/**
+ * Fetch with timeout for geocoding (longer timeout than autocomplete)
+ */
+async function geocodeFetchWithTimeout(url, options = {}, timeout = 8000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Geocoding request timed out');
+        }
+        throw error;
+    }
+}
+
+async function geocodeLocation(locationString, retries = 3) {
     try {
         console.log(`Geocoding: "${locationString}"`);
         const params = new URLSearchParams({
@@ -32,13 +55,23 @@ async function geocodeLocation(locationString) {
             countrycodes: 'in',
         });
 
-        const response = await fetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
-            headers: {
-                'User-Agent': 'SafeRouteFinderApp/1.0'
-            }
-        });
+        const response = await geocodeFetchWithTimeout(
+            `${NOMINATIM_BASE_URL}/search?${params}`,
+            {
+                headers: {
+                    'User-Agent': 'SafeRouteFinderApp/1.0'
+                }
+            },
+            8000 // 8 second timeout
+        );
 
         if (!response.ok) {
+            // Retry on server errors
+            if ((response.status >= 500 || response.status === 429) && retries > 0) {
+                console.warn(`Nominatim geocoding returned ${response.status}, retrying... (${retries} left)`);
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                return geocodeLocation(locationString, retries - 1);
+            }
             throw new Error(`Geocoding failed: ${response.statusText}`);
         }
 
@@ -55,6 +88,12 @@ async function geocodeLocation(locationString) {
         };
     } catch (error) {
         console.error('Geocoding error:', error);
+        // Retry on timeout or network errors
+        if (retries > 0 && (error.message.includes('timed out') || error.name === 'TypeError')) {
+            console.warn(`Geocoding failed, retrying... (${retries} left)`);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            return geocodeLocation(locationString, retries - 1);
+        }
         throw error;
     }
 }
@@ -64,7 +103,34 @@ async function geocodeLocation(locationString) {
 // ========================================
 let debounceTimer;
 
-async function fetchSuggestions(query) {
+/**
+ * Fetch with timeout helper
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<Response>}
+ */
+async function fetchWithTimeout(url, options = {}, timeout = 5000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out');
+        }
+        throw error;
+    }
+}
+
+async function fetchSuggestions(query, retries = 2) {
     if (!query || query.length < 3) return [];
 
     try {
@@ -76,16 +142,34 @@ async function fetchSuggestions(query) {
             addressdetails: '1',
         });
 
-        const response = await fetch(`${NOMINATIM_BASE_URL}/search?${params}`, {
-            headers: {
-                'User-Agent': 'SafeRouteFinderApp/1.0'
-            }
-        });
+        const response = await fetchWithTimeout(
+            `${NOMINATIM_BASE_URL}/search?${params}`,
+            {
+                headers: {
+                    'User-Agent': 'SafeRouteFinderApp/1.0'
+                }
+            },
+            5000 // 5 second timeout
+        );
 
-        if (!response.ok) return [];
+        if (!response.ok) {
+            // Retry on server errors
+            if ((response.status >= 500 || response.status === 429) && retries > 0) {
+                console.warn(`Nominatim returned ${response.status}, retrying... (${retries} left)`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return fetchSuggestions(query, retries - 1);
+            }
+            return [];
+        }
         return await response.json();
     } catch (error) {
         console.error('Autocomplete error:', error);
+        // Retry on network errors
+        if (retries > 0 && (error.message === 'Request timed out' || error.name === 'TypeError')) {
+            console.warn(`Autocomplete failed, retrying... (${retries} left)`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return fetchSuggestions(query, retries - 1);
+        }
         return [];
     }
 }
@@ -108,13 +192,83 @@ function showSuggestions(suggestions, inputElement) {
     suggestions.forEach(item => {
         const div = document.createElement('div');
         div.classList.add('autocomplete-item');
-        div.innerHTML = `<strong>${item.display_name.split(',')[0]}</strong><br><small>${item.display_name}</small>`;
+        div.innerHTML = `<strong>${item.display_name.split(',')[0]}</strong><small>${item.display_name}</small>`;
         div.addEventListener('click', function () {
             inputElement.value = item.display_name;
             // Store coordinates to avoid re-geocoding
             inputElement.dataset.lat = item.lat;
             inputElement.dataset.lon = item.lon;
-            list.innerHTML = '';
+            list.remove(); // Remove dropdown entirely from DOM
+
+            // Immediately zoom to the selected location and plot preview marker
+            const lat = parseFloat(item.lat);
+            const lon = parseFloat(item.lon);
+            if (!isNaN(lat) && !isNaN(lon) && map) {
+                const isStart = inputElement.id === 'start-location';
+
+                // Remove existing preview markers
+                if (isStart && window.startPreviewMarker) {
+                    window.startPreviewMarker.remove();
+                }
+                if (!isStart && window.endPreviewMarker) {
+                    window.endPreviewMarker.remove();
+                }
+
+                // Create preview marker
+                const previewEl = document.createElement('div');
+                previewEl.className = 'preview-marker';
+                previewEl.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:0;margin:0;';
+                previewEl.innerHTML = isStart
+                    ? `<svg width="25" height="25" viewBox="0 0 20 20" style="display:block;">
+                        <circle cx="10" cy="10" r="8" fill="#22c55e"/>
+                        <circle cx="10" cy="10" r="3" fill="#fff"/>
+                    </svg>`
+                    : `<svg width="25" height="35" viewBox="0 0 20 28" style="display:block;">
+                        <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z" fill="#ef4444"/>
+                        <circle cx="10" cy="9" r="3.5" fill="#fff"/>
+                    </svg>`;
+
+                const marker = new maplibregl.Marker({
+                    element: previewEl,
+                    anchor: isStart ? 'center' : 'bottom'
+                })
+                    .setLngLat([lon, lat])
+                    .addTo(map);
+
+                if (isStart) {
+                    window.startPreviewMarker = marker;
+                } else {
+                    window.endPreviewMarker = marker;
+                }
+
+                // Check if both locations are set
+                const startInput = document.getElementById('start-location');
+                const endInput = document.getElementById('end-location');
+                const startLat = parseFloat(startInput.dataset.lat);
+                const startLon = parseFloat(startInput.dataset.lon);
+                const endLat = parseFloat(endInput.dataset.lat);
+                const endLon = parseFloat(endInput.dataset.lon);
+
+                if (!isNaN(startLat) && !isNaN(startLon) && !isNaN(endLat) && !isNaN(endLon)) {
+                    // Both locations set - fit bounds to show both
+                    const bounds = new maplibregl.LngLatBounds()
+                        .extend([startLon, startLat])
+                        .extend([endLon, endLat]);
+
+                    map.fitBounds(bounds, {
+                        padding: { top: 80, bottom: 80, left: 450, right: 80 },
+                        duration: 1500
+                    });
+                } else {
+                    // Only one location - zoom to it
+                    map.flyTo({
+                        center: [lon, lat],
+                        zoom: 15,
+                        duration: 1200,
+                        padding: { left: 420 }
+                    });
+                }
+            }
         });
         list.appendChild(div);
     });
@@ -131,10 +285,10 @@ function setupAutocomplete(inputId) {
         delete this.dataset.lon;
         const query = this.value;
 
-        // Remove existing list if query is empty
+        // Remove existing dropdown entirely if query is empty
         let list = this.nextElementSibling;
         if (list && list.classList.contains('autocomplete-items')) {
-            list.innerHTML = '';
+            list.remove();
         }
 
         if (!query) return;
@@ -145,12 +299,27 @@ function setupAutocomplete(inputId) {
         }, 300);
     });
 
-    // Close list when clicking outside
+    // Zoom to location when user leaves input field
+    input.addEventListener('blur', function () {
+        const lat = parseFloat(this.dataset.lat);
+        const lon = parseFloat(this.dataset.lon);
+
+        if (!isNaN(lat) && !isNaN(lon) && map) {
+            map.flyTo({
+                center: [lon, lat],
+                zoom: 14,
+                duration: 1500,
+                padding: { left: 420 } // Account for sidebar
+            });
+        }
+    });
+
+    // Close dropdown when clicking outside
     document.addEventListener('click', function (e) {
         if (e.target !== input) {
             let list = input.nextElementSibling;
             if (list && list.classList.contains('autocomplete-items')) {
-                list.innerHTML = '';
+                list.remove(); // Remove dropdown entirely from DOM
             }
         }
     });
@@ -228,7 +397,31 @@ let currentPopup = null;
 function initializeMap() {
     map = new maplibregl.Map({
         container: 'map',
-        style: 'data/style.json',
+        style: {
+            version: 8,
+            sources: {
+                'osm-tiles': {
+                    type: 'raster',
+                    tiles: [
+                        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                    ],
+                    tileSize: 256,
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }
+            },
+            layers: [
+                {
+                    id: 'osm-tiles',
+                    type: 'raster',
+                    source: 'osm-tiles',
+                    minzoom: 0,
+                    maxzoom: 19
+                }
+            ],
+            glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf'
+        },
         center: [77.5946, 12.9716],
         zoom: 12,
         attributionControl: true,
@@ -511,7 +704,7 @@ function addCrimeDataLayer() {
                 5, '#f59e0b',
                 10, '#ef4444'
             ],
-            'circle-opacity': 0.3,
+            'circle-opacity': 0.4,
             'circle-stroke-width': 2,
             'circle-stroke-color': [
                 'interpolate',
@@ -632,7 +825,7 @@ function addMetroLayer() {
         layout: {
             'visibility': 'none',
             'text-field': 'M',
-            'text-font': ['Open Sans Bold'],
+            'text-font': ['Open Sans Semibold'],
             'text-size': 8,
             'text-allow-overlap': true
         },
@@ -695,9 +888,10 @@ function toggleMetroStops() {
     }
 
     const btn = document.getElementById('metro-btn');
+    const label = btn.querySelector('.btn-label');
     if (newVisibility === 'visible') {
-        btn.style.backgroundColor = '#581c87';
-        btn.innerHTML = '<span class="btn-icon">🚇</span> Hide Metro Stations';
+        btn.classList.add('active');
+        if (label) label.textContent = 'Hide Metro';
 
         // Fly to Bangalore center to show all lines
         map.flyTo({
@@ -706,8 +900,8 @@ function toggleMetroStops() {
             padding: { left: 450, right: 50 } // Offset for sidebar
         });
     } else {
-        btn.style.backgroundColor = '#6b21a8';
-        btn.innerHTML = '<span class="btn-icon">🚇</span> Show Metro Stations';
+        btn.classList.remove('active');
+        if (label) label.textContent = 'Metro Stations';
     }
 }
 
@@ -839,12 +1033,13 @@ function toggleBmtcRoutes() {
     }
 
     const btn = document.getElementById('bmtc-btn');
+    const label = btn.querySelector('.btn-label');
     if (newVisibility === 'visible') {
-        btn.style.backgroundColor = '#991b1b'; // Darker red
-        btn.innerHTML = '<span class="btn-icon">🚌</span> Hide BMTC Routes';
+        btn.classList.add('active');
+        if (label) label.textContent = 'Hide BMTC';
     } else {
-        btn.style.backgroundColor = '#dc2626'; // Red
-        btn.innerHTML = '<span class="btn-icon">🚌</span> Show BMTC Routes';
+        btn.classList.remove('active');
+        if (label) label.textContent = 'BMTC Routes';
     }
 }
 
@@ -855,7 +1050,7 @@ let facilityMarkers = [];
 
 function addFacilityLayer() {
     // Clear existing markers if any
-    facilityMarkers.forEach(marker => marker.remove());
+    facilityMarkers.forEach(m => m.marker.remove());
     facilityMarkers = [];
 
     const popup = new maplibregl.Popup({
@@ -868,14 +1063,23 @@ function addFacilityLayer() {
     HOSPITALS.forEach(h => {
         const el = document.createElement('div');
         el.className = 'hospital-marker';
-        el.innerText = '🏥';
-        el.style.display = 'none'; // Initially hidden
+        el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="hGrad${h.lat}" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#EF4444"/>
+                    <stop offset="100%" stop-color="#B91C1C"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 16 12 16s12-7 12-16c0-6.6-5.4-12-12-12z" fill="url(#hGrad${h.lat})"/>
+            <rect x="10" y="6" width="4" height="12" rx="0.5" fill="#fff"/>
+            <rect x="6" y="10" width="12" height="4" rx="0.5" fill="#fff"/>
+        </svg>`;
+        el.style.display = 'none';
 
         const marker = new maplibregl.Marker({ element: el })
             .setLngLat([h.lon, h.lat])
             .addTo(map);
 
-        // Add popup events
         el.addEventListener('mouseenter', () => {
             popup.setLngLat([h.lon, h.lat])
                 .setHTML(`
@@ -891,26 +1095,34 @@ function addFacilityLayer() {
             popup.remove();
         });
 
-        facilityMarkers.push({ marker, type: 'hospital', element: el });
+        facilityMarkers.push({ marker, element: el });
     });
 
     // Police Stations
     POLICE_STATIONS.forEach(p => {
         const el = document.createElement('div');
         el.className = 'police-marker';
-        el.innerText = '👮‍♂️';
-        el.style.display = 'none'; // Initially hidden
+        el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="pGrad${p.lat}" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#3B82F6"/>
+                    <stop offset="100%" stop-color="#1E3A8A"/>
+                </linearGradient>
+            </defs>
+            <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 16 12 16s12-7 12-16c0-6.6-5.4-12-12-12z" fill="url(#pGrad${p.lat})"/>
+            <path d="M12 5l-5 3.5v4c0 3 2 5.5 5 7 3-1.5 5-4 5-7v-4L12 5z" fill="#fff"/>
+        </svg>`;
+        el.style.display = 'none';
 
         const marker = new maplibregl.Marker({ element: el })
             .setLngLat([p.lon, p.lat])
             .addTo(map);
 
-        // Add popup events
         el.addEventListener('mouseenter', () => {
             popup.setLngLat([p.lon, p.lat])
                 .setHTML(`
                     <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
-                        <strong>${p.name || 'Police Station'}</strong><br>
+                        <strong>${p.area}</strong><br>
                         <span style="color: #1e3a8a;">Police Station</span>
                     </div>
                 `)
@@ -921,7 +1133,7 @@ function addFacilityLayer() {
             popup.remove();
         });
 
-        facilityMarkers.push({ marker, type: 'police', element: el });
+        facilityMarkers.push({ marker, element: el });
     });
 }
 
@@ -935,13 +1147,14 @@ function toggleFacilities() {
     });
 
     btn.setAttribute('data-visible', newVisibility);
+    const label = btn.querySelector('.btn-label');
 
     if (newVisibility) {
-        btn.style.backgroundColor = '#115e59'; // Darker teal
-        btn.innerHTML = '<span class="btn-icon">🏥</span> Hide Hospitals & Police';
+        btn.classList.add('active');
+        if (label) label.textContent = 'Hide Facilities';
     } else {
-        btn.style.backgroundColor = '#0f766e'; // Teal
-        btn.innerHTML = '<span class="btn-icon">🏥</span> Show Hospitals & Police';
+        btn.classList.remove('active');
+        if (label) label.textContent = 'Hospitals & Police Stations';
     }
 }
 
@@ -951,8 +1164,7 @@ function toggleFacilities() {
 let accidentMarkers = [];
 
 function addAccidentLayer() {
-    // Clear existing markers
-    accidentMarkers.forEach(marker => marker.remove());
+    accidentMarkers.forEach(m => m.marker.remove());
     accidentMarkers = [];
 
     const popup = new maplibregl.Popup({
@@ -964,21 +1176,23 @@ function addAccidentLayer() {
     ACCIDENT_DATA.forEach(accident => {
         const el = document.createElement('div');
         el.className = 'accident-marker';
-        el.innerText = '⚠️';
-        el.style.display = 'none'; // Initially hidden
+        el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3L3 19h18L12 3z" fill="#D97706" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
+            <path d="M12 9v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="15.5" r="1" fill="#fff"/>
+        </svg>`;
+        el.style.display = 'none';
 
         const marker = new maplibregl.Marker({ element: el })
             .setLngLat([accident.lon, accident.lat])
             .addTo(map);
 
-        // Add popup events
         el.addEventListener('mouseenter', () => {
             popup.setLngLat([accident.lon, accident.lat])
                 .setHTML(`
                     <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
-                        <strong>${accident.area || 'Accident Spot'}</strong><br>
-                        <span style="color: #ea580c;">Severity: ${accident.severity}/10</span><br>
-                        <small>${accident.description || ''}</small>
+                        <strong>${accident.area}</strong><br>
+                        <span style="color: #ea580c;">Severity: ${accident.severity}/10</span>
                     </div>
                 `)
                 .addTo(map);
@@ -1002,13 +1216,14 @@ function toggleAccidents() {
     });
 
     btn.setAttribute('data-visible', newVisibility);
+    const label = btn.querySelector('.btn-label');
 
     if (newVisibility) {
-        btn.style.backgroundColor = '#9a3412'; // Darker orange
-        btn.innerHTML = '<span class="btn-icon">⚠️</span> Hide Accidents';
+        btn.classList.add('active');
+        if (label) label.textContent = 'Hide Accidents';
     } else {
-        btn.style.backgroundColor = '#ea580c'; // Orange
-        btn.innerHTML = '<span class="btn-icon">⚠️</span> Show Accidents';
+        btn.classList.remove('active');
+        if (label) label.textContent = 'Accident Zones';
     }
 }
 
@@ -1046,7 +1261,7 @@ function renderRoutesOnMap(routes) {
                 paint: {
                     'line-color': index === 0 ? '#10b981' : (index === 1 ? '#f59e0b' : '#94a3b8'),
                     'line-width': route.id === selectedRouteId ? 6 : 4,
-                    'line-opacity': route.id === selectedRouteId ? 1 : 0.4
+                    'line-opacity': route.id === selectedRouteId ? 1 : 0.6
                 }
             }, beforeLayer);
 
@@ -1126,13 +1341,29 @@ function clearMarkers() {
 function addMarkers(startCoords, endCoords) {
     clearMarkers();
 
-    // Add start marker (green)
-    startMarker = new maplibregl.Marker({ color: '#10b981' })
+    // Start marker - simple green circle (Google Maps style origin)
+    const startEl = document.createElement('div');
+    startEl.className = 'route-marker start-marker';
+    startEl.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:0;margin:0;';
+    startEl.innerHTML = `<svg width="25" height="25" viewBox="0 0 20 20" style="display:block;">
+        <circle cx="10" cy="10" r="8" fill="#22c55e"/>
+        <circle cx="10" cy="10" r="3" fill="#fff"/>
+    </svg>`;
+
+    startMarker = new maplibregl.Marker({ element: startEl, anchor: 'center' })
         .setLngLat([startCoords.lon, startCoords.lat])
         .addTo(map);
 
-    // Add destination marker (cyan)
-    endMarker = new maplibregl.Marker({ color: '#06b6d4' })
+    // End marker - classic red pin (Google Maps style destination)
+    const endEl = document.createElement('div');
+    endEl.className = 'route-marker end-marker';
+    endEl.style.cssText = 'display:flex;align-items:flex-end;justify-content:center;padding:0;margin:0;';
+    endEl.innerHTML = `<svg width="25" height="35" viewBox="0 0 20 28" style="display:block;">
+        <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z" fill="#ef4444"/>
+        <circle cx="10" cy="9" r="3.5" fill="#fff"/>
+    </svg>`;
+
+    endMarker = new maplibregl.Marker({ element: endEl, anchor: 'bottom' })
         .setLngLat([endCoords.lon, endCoords.lat])
         .addTo(map);
 }
@@ -1201,7 +1432,7 @@ function renderRoutesList(routes) {
       <div class="route-details">
         <div class="route-stat">
           <span class="stat-label">Safety Score</span>
-          <span class="safety-score">${route.safetyScore}/100</span>
+          <span class="safety-score ${safetyLevel}">${route.safetyScore}/100</span>
         </div>
         <div class="route-stat">
           <span class="stat-label">Distance</span>
@@ -1218,13 +1449,13 @@ function renderRoutesList(routes) {
         </div>
       ` : ''}
       <div class="route-facilities" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155; font-size: 0.85rem; color: #cbd5e1;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>🏥 Nearest Hospital:</span>
-            <span style="color: #fff;">${formatDistance(nearest.hospital.distance * 1000)}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px;">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">🏥 ${nearest.hospital.name}</span>
+            <span style="color: #fff; white-space: nowrap; min-width: 60px; text-align: right;">${formatDistance(nearest.hospital.distance * 1000)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between;">
-            <span>👮 Nearest Police:</span>
-            <span style="color: #fff;">${formatDistance(nearest.police.distance * 1000)}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">👮 ${nearest.police.name}</span>
+            <span style="color: #fff; white-space: nowrap; min-width: 60px; text-align: right;">${formatDistance(nearest.police.distance * 1000)}</span>
         </div>
       </div>
     `;
@@ -1427,6 +1658,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sosBtn) {
         sosBtn.addEventListener('click', () => {
             alert('Emergency message sent to server! Help is on the way.');
+        });
+    }
+
+    // Premium button hover spotlight effect
+    const findBtn = document.getElementById('find-routes-btn');
+    if (findBtn) {
+        findBtn.addEventListener('mousemove', (e) => {
+            const rect = findBtn.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            findBtn.style.setProperty('--mouse-x', `${x}%`);
+            findBtn.style.setProperty('--mouse-y', `${y}%`);
+        });
+
+        findBtn.addEventListener('mouseleave', () => {
+            findBtn.style.setProperty('--mouse-x', '50%');
+            findBtn.style.setProperty('--mouse-y', '50%');
         });
     }
 });
