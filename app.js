@@ -1000,13 +1000,24 @@ function addBmtcLayer() {
         })
         .catch(err => console.error('Error loading BMTC stops:', err));
 
-    // Load Routes
-    fetch('data/bmtc_routes.json')
-        .then(response => response.json())
-        .then(data => {
+    // Load Routes (Split into parts due to size limits)
+    Promise.all([
+        fetch('data/bmtc_routes_part1.json').then(res => res.json()),
+        fetch('data/bmtc_routes_part2.json').then(res => res.json()),
+        fetch('data/bmtc_routes_part3.json').then(res => res.json())
+    ])
+        .then(results => {
+            // Merge features from all parts
+            const allFeatures = results.flatMap(data => data.features);
+            const mergedData = {
+                type: "FeatureCollection",
+                features: allFeatures
+            };
+
             map.addSource('bmtc-routes', {
                 type: 'geojson',
-                data: data
+                data: mergedData,
+                lineMetrics: true
             });
 
             map.addLayer({
@@ -1019,13 +1030,13 @@ function addBmtcLayer() {
                     'visibility': 'none'
                 },
                 paint: {
-                    'line-color': '#ef4444', // Reddish
+                    'line-color': '#dc2626', // Red color for BMTC
                     'line-width': 2,
                     'line-opacity': 0.7
                 }
-            }, 'crime-points'); // Place below crime points
+            }, 'bmtc-stops-layer');
 
-            // Popup for routes
+            // Add popup for routes
             const popup = new maplibregl.Popup({
                 closeButton: false,
                 closeOnClick: false
@@ -1034,25 +1045,12 @@ function addBmtcLayer() {
             map.on('mouseenter', 'bmtc-routes-layer', (e) => {
                 map.getCanvas().style.cursor = 'pointer';
 
-                const props = e.features[0].properties;
-                const shortName = props.route_short_name;
-                const longName = props.route_long_name;
+                const properties = e.features[0].properties;
+                const description = properties.route_no || properties.route_id || 'BMTC Route';
 
-                let content = '<div style="padding: 5px; font-family: sans-serif;">';
-                if (shortName && shortName !== 'Unknown') {
-                    content += `<strong style="color: #dc2626; font-size: 14px;">${shortName}</strong><br>`;
-                }
-                if (longName && longName !== 'Unknown') {
-                    // Make the '⇔' arrow more prominent or split lines if needed, but keeping it simple for now
-                    content += `<span style="color: #333; font-size: 12px;">${longName}</span>`;
-                }
-                content += '</div>';
-
-                popup.setLngLat(e.lngLat).setHTML(content).addTo(map);
-            });
-
-            map.on('mousemove', 'bmtc-routes-layer', (e) => {
-                popup.setLngLat(e.lngLat);
+                popup.setLngLat(e.lngLat)
+                    .setHTML(`<strong style="color: #000000;">${description}</strong>`)
+                    .addTo(map);
             });
 
             map.on('mouseleave', 'bmtc-routes-layer', () => {
