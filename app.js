@@ -200,10 +200,29 @@ function showSuggestions(suggestions, inputElement) {
             inputElement.dataset.lon = item.lon;
             list.remove(); // Remove dropdown entirely from DOM
 
-            // Immediately zoom to the selected location and plot preview marker
+            // Sync mobile inputs to main inputs
+            if (inputElement.id === 'mobile-start-input') {
+                const mainInput = document.getElementById('start-location');
+                if (mainInput) {
+                    mainInput.value = item.display_name;
+                    mainInput.dataset.lat = item.lat;
+                    mainInput.dataset.lon = item.lon;
+                }
+            } else if (inputElement.id === 'mobile-end-input') {
+                const mainInput = document.getElementById('end-location');
+                if (mainInput) {
+                    mainInput.value = item.display_name;
+                    mainInput.dataset.lat = item.lat;
+                    mainInput.dataset.lon = item.lon;
+                }
+            }
+
+            // Only show preview markers and fly on DESKTOP - skip on mobile
+            const isMobile = window.matchMedia('(max-width: 768px)').matches;
             const lat = parseFloat(item.lat);
             const lon = parseFloat(item.lon);
-            if (!isNaN(lat) && !isNaN(lon) && map) {
+
+            if (!isMobile && !isNaN(lat) && !isNaN(lon) && map) {
                 const isStart = inputElement.id === 'start-location';
 
                 // Remove existing preview markers
@@ -504,42 +523,47 @@ async function fetchTrafficIncidents(bbox) {
         // Default to Bengaluru bounds if no bbox provided
         const bounds = bbox || '77.300000,12.800000,77.800000,13.200000';
 
-        // Ensure bounds validation and precision
-        const formattedBounds = bounds.split(',').map(c => parseFloat(c).toFixed(6)).join(',');
+        // Parse bounds for TomTom v4 API format: minLon,minLat,maxLon,maxLat
+        const [minLon, minLat, maxLon, maxLat] = bounds.split(',').map(c => parseFloat(c).toFixed(6));
 
-        // TomTom REQUIRES the fields parameter for this endpoint
-        const fields = '{incidents{type,geometry{type,coordinates},properties{id,magnitudeOfDelay,events{description},from,to,startTime}}}';
-
-        const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?bbox=${formattedBounds}&fields=${encodeURIComponent(fields)}&key=${TOMTOM_API_KEY}&language=en-GB&t=${Date.now()}`;
-
+        // Use TomTom Traffic Incidents v4 API (tile-based, works reliably)
+        // Format: /traffic/services/4/incidentDetails/s3/{minLon},{minLat},{maxLon},{maxLat}/{zoom}/-1/{format}
+        const url = `https://api.tomtom.com/traffic/services/4/incidentDetails/s3/${minLon},${minLat},${maxLon},${maxLat}/11/-1/json?key=${TOMTOM_API_KEY}&expandCluster=true&projection=EPSG4326`;
 
         console.log(`[Traffic Debug] BBox: ${bounds}`);
         if (!TOMTOM_API_KEY) console.error('[Traffic Error] TOMTOM_API_KEY is missing!');
 
         const response = await fetch(url);
-        if (!response.ok) return [];
+        if (!response.ok) {
+            console.error(`[Traffic Error] API returned ${response.status}`);
+            return [];
+        }
 
         const data = await response.json();
-        if (!data.incidents) return [];
 
-        // Filter for Major/High impact only as requested (Red spots)
-        // DEBUG: Adding 'Moderate' to ensure visibility if Major incidents are rare
-        const filteredIncidents = data.incidents
-            .filter(inc => ['Major', 'Unknown', 'Moderate'].includes(inc.properties.magnitudeOfDelay));
+        // v4 API returns data in tm.poi array
+        if (!data.tm || !data.tm.poi) {
+            console.log('[Traffic] No incidents found in area');
+            return [];
+        }
 
-        console.log(`[Traffic] Fetched ${data.incidents.length} total, showing ${filteredIncidents.length} severe/moderate incidents.`);
+        const incidents = data.tm.poi;
+        console.log(`[Traffic] Fetched ${incidents.length} traffic incidents.`);
 
-        return filteredIncidents
+        return incidents
+            .filter(inc => inc.p) // Ensure position exists
             .map(inc => ({
-                id: inc.properties.id,
-                // Store full geometry (may be Point or LineString)
-                geometry: inc.geometry,
-                point: { lat: inc.geometry.coordinates[1], lon: inc.geometry.coordinates[0] }, // Fallback center point (unsafe for LineString but kept for compatibility logic)
-                severity: inc.properties.magnitudeOfDelay,
-                delay: inc.properties.magnitudeOfDelay === 'Major' ? 900 : 600,
-                description: inc.properties.events ? inc.properties.events[0].description : 'Traffic Incident',
-                from: inc.properties.from,
-                to: inc.properties.to
+                id: inc.id || `traffic-${Math.random()}`,
+                geometry: {
+                    type: 'Point',
+                    coordinates: [inc.p.x, inc.p.y]
+                },
+                point: { lat: inc.p.y, lon: inc.p.x },
+                severity: inc.ty === 1 ? 'Major' : 'Moderate', // ty: incident type
+                delay: inc.dl || 0, // delay in seconds
+                description: inc.d || 'Traffic Incident',
+                from: inc.f || '',
+                to: inc.t || ''
             }));
     } catch (error) {
         console.error('Error fetching traffic incidents:', error);
@@ -893,12 +917,29 @@ function toggleMetroStops() {
         btn.classList.add('active');
         if (label) label.textContent = 'Hide Metro';
 
-        // Fly to Bangalore center to show all lines
-        map.flyTo({
-            center: [77.5946, 12.9716],
-            zoom: 11,
-            padding: { left: 450, right: 50 } // Offset for sidebar
-        });
+        // Check if mobile for different padding
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+        if (isMobile) {
+            // Mobile: Get actual top bar and panel heights
+            const topBar = document.querySelector('.mobile-top-bar');
+            const panel = document.querySelector('.sidebar');
+            const topPadding = topBar ? topBar.offsetHeight + 15 : 75;
+            const bottomPadding = panel ? panel.offsetHeight + 15 : 100;
+
+            map.flyTo({
+                center: [77.5946, 12.9716],
+                zoom: 11,
+                padding: { top: topPadding, bottom: bottomPadding, left: 25, right: 25 }
+            });
+        } else {
+            // Desktop: Original padding with sidebar offset
+            map.flyTo({
+                center: [77.5946, 12.9716],
+                zoom: 11,
+                padding: { left: 450, right: 50 }
+            });
+        }
     } else {
         btn.classList.remove('active');
         if (label) label.textContent = 'Metro Stations';
@@ -1289,24 +1330,55 @@ function renderRoutesOnMap(routes) {
             });
         });
 
-        // Animation sequence:
-        // 1. Fly to Bengaluru center (zoom out)
-        // 2. Then fit bounds to the route (zoom in)
-        map.flyTo({
-            center: [77.5946, 12.9716],
-            zoom: 9, // Zoom out further for dramatic effect
-            padding: { left: 450, right: 50 }, // Safe padding
-            duration: 2000, // 2 seconds
-            essential: true
-        });
+        // Check if mobile
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-        // Use setTimeout instead of moveend for reliability
-        setTimeout(() => {
-            map.fitBounds(bounds, {
-                padding: { top: 100, bottom: 20, left: 430, right: 20 }, // Increased top padding for SOS button
-                duration: 2000 // 2 seconds for zoom in
+        if (isMobile) {
+            // Mobile: Minimize panel and fit to route
+            const panel = document.querySelector('.sidebar');
+            if (panel) {
+                panel.classList.remove('expanded');
+                panel.classList.add('minimized');
+            }
+
+            // Simple direct fit bounds - no dramatic zoom out on mobile
+            // Wait for panel to minimize first
+            setTimeout(() => {
+                console.log('Mobile fitBounds called');
+                console.log('Map exists:', !!map);
+                console.log('Bounds:', bounds);
+                console.log('Bounds array:', bounds.toArray ? bounds.toArray() : 'N/A');
+
+                if (map && !bounds.isEmpty()) {
+                    map.fitBounds(bounds, {
+                        padding: { top: 100, bottom: 110, left: 40, right: 40 },
+                        maxZoom: 14,
+                        duration: 1500
+                    });
+                    console.log('fitBounds executed');
+                } else {
+                    console.error('Cannot fitBounds - map:', !!map, 'bounds empty:', bounds.isEmpty ? bounds.isEmpty() : 'unknown');
+                }
+            }, 500);
+        } else {
+            // Desktop: Original animation sequence
+            // 1. Fly to Bengaluru center (zoom out)
+            // 2. Then fit bounds to the route (zoom in)
+            map.flyTo({
+                center: [77.5946, 12.9716],
+                zoom: 9,
+                padding: { left: 450, right: 50 },
+                duration: 2000,
+                essential: true
             });
-        }, 2000);
+
+            setTimeout(() => {
+                map.fitBounds(bounds, {
+                    padding: { top: 100, bottom: 20, left: 430, right: 20 },
+                    duration: 2000
+                });
+            }, 2000);
+        }
     }
 }
 
@@ -1677,4 +1749,337 @@ document.addEventListener('DOMContentLoaded', () => {
             findBtn.style.setProperty('--mouse-y', '50%');
         });
     }
+
+    // ========================================
+    // Mobile Panel Functionality
+    // ========================================
+    initMobilePanel();
+    initMobileSearchPanel();
 });
+
+// ========================================
+// Mobile Panel Drag & State Management
+// ========================================
+function initMobilePanel() {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobile) return;
+
+    const panel = document.querySelector('.sidebar');
+    const handle = document.querySelector('.panel-drag-handle');
+
+    if (!panel || !handle) return;
+
+    let startY = 0;
+    let startHeight = 0;
+    let isDragging = false;
+    let hasMoved = false;
+
+    // Helper function to refit route bounds based on panel state
+    function refitRouteBounds() {
+        if (!currentRoutes || currentRoutes.length === 0) return;
+        if (!map) return;
+
+        const bounds = new maplibregl.LngLatBounds();
+        currentRoutes.forEach(route => {
+            if (route.geometry && route.geometry.coordinates) {
+                route.geometry.coordinates.forEach(coord => {
+                    bounds.extend(coord);
+                });
+            }
+        });
+
+        if (bounds.isEmpty()) return;
+
+        // Get actual measurements
+        const panelHeight = panel.offsetHeight || 0;
+
+        // Get top bar height (search bar + SOS button area)
+        const topBar = document.querySelector('.mobile-top-bar');
+        const topBarHeight = topBar ? topBar.offsetHeight : 60;
+
+        // Top padding = top bar height + buffer
+        const topPadding = topBarHeight + 15;
+
+        // Bottom padding = panel height + buffer
+        const bottomPadding = panelHeight + 15;
+
+        console.log('Refit:', { topPadding, bottomPadding, panelHeight, topBarHeight });
+
+        map.fitBounds(bounds, {
+            padding: {
+                top: topPadding,
+                bottom: bottomPadding,
+                left: 25,
+                right: 25
+            },
+            maxZoom: 15,
+            duration: 500
+        });
+    }
+
+    // Touch start on drag handle - begin potential drag
+    handle.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        hasMoved = false;
+        startY = e.touches[0].clientY;
+        startHeight = panel.offsetHeight;
+        panel.style.transition = 'none';
+    }, { passive: true });
+
+    // Touch move - this is the actual dragging
+    handle.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        hasMoved = true;
+
+        const currentY = e.touches[0].clientY;
+        const deltaY = startY - currentY;
+        const newHeight = startHeight + deltaY;
+        const vh = window.innerHeight;
+
+        // Clamp between 70px (minimized) and 70vh (expanded)
+        const clampedHeight = Math.min(Math.max(newHeight, 70), vh * 0.70);
+        panel.style.height = `${clampedHeight}px`;
+    }, { passive: true });
+
+    // Touch end - snap to nearest state
+    handle.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        panel.style.transition = 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+
+        // If user didn't move much, treat as a tap
+        if (!hasMoved) {
+            // Toggle between states on tap
+            if (panel.classList.contains('minimized')) {
+                panel.classList.remove('minimized');
+                setTimeout(refitRouteBounds, 400);
+            } else if (panel.classList.contains('expanded')) {
+                panel.classList.remove('expanded');
+                setTimeout(refitRouteBounds, 400);
+            } else {
+                panel.classList.add('expanded');
+                setTimeout(refitRouteBounds, 400);
+            }
+            return;
+        }
+
+        const currentHeight = panel.offsetHeight;
+        const vh = window.innerHeight;
+
+        // Snap thresholds: below 20% = minimized, above 50% = expanded
+        const minimizedThreshold = vh * 0.20;
+        const expandedThreshold = vh * 0.50;
+
+        panel.classList.remove('minimized', 'expanded');
+        panel.style.height = '';
+
+        if (currentHeight < minimizedThreshold) {
+            panel.classList.add('minimized');
+        } else if (currentHeight > expandedThreshold) {
+            panel.classList.add('expanded');
+        }
+
+        // Refit route after state change
+        setTimeout(refitRouteBounds, 400);
+    });
+
+    // MAP CLICK: Minimize panel when clicking on the map
+    if (map) {
+        map.on('click', (e) => {
+            // Check if click is on a route layer (don't minimize if selecting route)
+            const features = map.queryRenderedFeatures(e.point);
+            const clickedOnRoute = features.some(f => f.layer && f.layer.id && f.layer.id.startsWith('route-layer-'));
+
+            if (!clickedOnRoute && !panel.classList.contains('minimized')) {
+                panel.classList.remove('expanded');
+                panel.classList.add('minimized');
+                setTimeout(refitRouteBounds, 400);
+            }
+        });
+    }
+
+    // DO NOT expand on input focus - keep panel at default size
+    // (Removed the input focus listener that was expanding the panel)
+
+    // Handle resize - reinitialize if crossing mobile breakpoint
+    let wasMobile = isMobile;
+    window.addEventListener('resize', () => {
+        const nowMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (nowMobile !== wasMobile) {
+            wasMobile = nowMobile;
+            if (nowMobile) {
+                initMobilePanel();
+                initMobileSearchPanel();
+            } else {
+                // Reset panel state on desktop
+                panel.classList.remove('minimized', 'expanded');
+                panel.style.height = '';
+            }
+        }
+    });
+
+    // Make refitRouteBounds globally accessible for use elsewhere
+    window.refitMobileRouteBounds = refitRouteBounds;
+}
+
+// ========================================
+// Mobile Expandable Search Panel
+// ========================================
+function initMobileSearchPanel() {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobile) return;
+
+    const collapsedSearch = document.getElementById('mobile-search-collapsed');
+    const expandedSearch = document.getElementById('mobile-search-expanded');
+    const backBtn = document.getElementById('search-back-btn');
+    const mobileStartInput = document.getElementById('mobile-start-input');
+    const mobileEndInput = document.getElementById('mobile-end-input');
+    const mainStartInput = document.getElementById('start-location');
+    const mainEndInput = document.getElementById('end-location');
+
+    if (!collapsedSearch || !expandedSearch) return;
+
+    // Setup autocomplete for mobile inputs
+    setupAutocomplete('mobile-start-input');
+    setupAutocomplete('mobile-end-input');
+
+    // Mobile SOS button - trigger emergency modal
+    const mobileSosBtn = document.getElementById('mobile-sos-btn');
+    if (mobileSosBtn) {
+        mobileSosBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Don't open search panel
+            const sosBtn = document.getElementById('sos-btn');
+            if (sosBtn) sosBtn.click();
+        });
+    }
+
+    // Open expanded search when collapsed bar is tapped
+    collapsedSearch.addEventListener('click', () => {
+        expandedSearch.classList.remove('hidden');
+        collapsedSearch.style.opacity = '0';
+        collapsedSearch.style.pointerEvents = 'none';
+
+        // Minimize bottom panel when search is opened
+        const panel = document.querySelector('.sidebar');
+        if (panel) {
+            panel.classList.remove('expanded');
+            panel.classList.add('minimized');
+        }
+
+        // Sync values from main inputs
+        if (mobileStartInput && mainStartInput) {
+            mobileStartInput.value = mainStartInput.value;
+        }
+        if (mobileEndInput && mainEndInput) {
+            mobileEndInput.value = mainEndInput.value;
+        }
+
+        // Focus first input after animation
+        setTimeout(() => {
+            if (mobileStartInput) mobileStartInput.focus();
+        }, 300);
+    });
+
+    // Minimize bottom panel when inputs are focused
+    const minimizePanelOnFocus = () => {
+        const panel = document.querySelector('.sidebar');
+        if (panel && !panel.classList.contains('minimized')) {
+            panel.classList.remove('expanded');
+            panel.classList.add('minimized');
+        }
+    };
+
+    if (mobileStartInput) {
+        mobileStartInput.addEventListener('focus', minimizePanelOnFocus);
+    }
+    if (mobileEndInput) {
+        mobileEndInput.addEventListener('focus', minimizePanelOnFocus);
+    }
+
+    // Close expanded search when back button is tapped
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            expandedSearch.classList.add('hidden');
+            collapsedSearch.style.opacity = '1';
+            collapsedSearch.style.pointerEvents = 'auto';
+
+            // Sync values back to main inputs
+            if (mobileStartInput && mainStartInput) {
+                mainStartInput.value = mobileStartInput.value;
+            }
+            if (mobileEndInput && mainEndInput) {
+                mainEndInput.value = mobileEndInput.value;
+            }
+        });
+    }
+
+    // Sync mobile inputs with main inputs and trigger geocoding on Enter
+    if (mobileStartInput) {
+        mobileStartInput.addEventListener('input', () => {
+            if (mainStartInput) mainStartInput.value = mobileStartInput.value;
+        });
+
+        mobileStartInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (mobileEndInput) mobileEndInput.focus();
+            }
+        });
+    }
+
+    if (mobileEndInput) {
+        mobileEndInput.addEventListener('input', () => {
+            if (mainEndInput) mainEndInput.value = mobileEndInput.value;
+        });
+
+        mobileEndInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                // Close expanded search and trigger route finding
+                expandedSearch.classList.add('hidden');
+                collapsedSearch.style.opacity = '1';
+                collapsedSearch.style.pointerEvents = 'auto';
+
+                // Sync and find routes
+                if (mainStartInput) mainStartInput.value = mobileStartInput.value;
+                if (mainEndInput) mainEndInput.value = mobileEndInput.value;
+
+                // Trigger route finding
+                const findBtn = document.getElementById('find-routes-btn');
+                if (findBtn) findBtn.click();
+            }
+        });
+    }
+
+    // Mobile Find Routes Button
+    const mobileFindBtn = document.getElementById('mobile-find-routes-btn');
+    if (mobileFindBtn) {
+        mobileFindBtn.addEventListener('click', () => {
+            // Sync values and coordinates to main inputs
+            if (mobileStartInput && mainStartInput) {
+                mainStartInput.value = mobileStartInput.value;
+                // Also sync coordinates if available
+                if (mobileStartInput.dataset.lat) {
+                    mainStartInput.dataset.lat = mobileStartInput.dataset.lat;
+                    mainStartInput.dataset.lon = mobileStartInput.dataset.lon;
+                }
+            }
+            if (mobileEndInput && mainEndInput) {
+                mainEndInput.value = mobileEndInput.value;
+                // Also sync coordinates if available
+                if (mobileEndInput.dataset.lat) {
+                    mainEndInput.dataset.lat = mobileEndInput.dataset.lat;
+                    mainEndInput.dataset.lon = mobileEndInput.dataset.lon;
+                }
+            }
+
+            // Close expanded search panel
+            expandedSearch.classList.add('hidden');
+            collapsedSearch.style.opacity = '1';
+            collapsedSearch.style.pointerEvents = 'auto';
+
+            // Trigger route finding
+            const findBtn = document.getElementById('find-routes-btn');
+            if (findBtn) findBtn.click();
+        });
+    }
+}

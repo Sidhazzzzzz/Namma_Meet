@@ -25,8 +25,72 @@
 
 <body>
     <div id="app">
-        <!-- Sidebar -->
+        <!-- Mobile Top Search Bar (hidden on desktop) -->
+        <div class="mobile-top-bar">
+            <div class="mobile-search-bar" id="mobile-search-collapsed">
+                <div class="mobile-search-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                </div>
+                <span class="mobile-search-placeholder">Where to?</span>
+                <img src="assets/favicon.png" alt="Logo" class="mobile-logo-mini" />
+            </div>
+            <button class="mobile-sos-btn" id="mobile-sos-btn" aria-label="Emergency SOS">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Expanded Search Panel (shows when search bar is tapped) -->
+        <div class="mobile-search-expanded hidden" id="mobile-search-expanded">
+            <div class="expanded-search-header">
+                <button class="back-btn" id="search-back-btn" aria-label="Go back">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <div class="expanded-search-inputs">
+                    <div class="mini-input-row">
+                        <span class="mini-marker green">
+                            <svg width="18" height="18" viewBox="0 0 20 20">
+                                <circle cx="10" cy="10" r="8" fill="#22c55e" />
+                                <circle cx="10" cy="10" r="3" fill="#fff" />
+                            </svg>
+                        </span>
+                        <input type="text" id="mobile-start-input" placeholder="Starting point" />
+                    </div>
+                    <div class="mini-input-row">
+                        <span class="mini-marker red">
+                            <svg width="18" height="25" viewBox="0 0 20 28">
+                                <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z"
+                                    fill="#ef4444" />
+                                <circle cx="10" cy="9" r="3.5" fill="#fff" />
+                            </svg>
+                        </span>
+                        <input type="text" id="mobile-end-input" placeholder="Destination" />
+                    </div>
+                    <button id="mobile-find-routes-btn" class="mobile-find-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+                            <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        Find Safe Routes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar (becomes bottom panel on mobile) -->
         <aside class="sidebar">
+            <!-- Drag handle for mobile panel -->
+            <div class="panel-drag-handle">
+                <span class="drag-indicator"></span>
+            </div>
+
             <div class="sidebar-content">
                 <div class="logo-section">
                     <img src="logo.jpg" alt="NAMMದಾರಿ Logo" class="logo-icon">
@@ -37,8 +101,9 @@
                     <div class="input-group">
                         <label for="start-location">
                             <span class="label-icon start-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                    <circle cx="12" cy="12" r="8"></circle>
+                                <svg width="18" height="18" viewBox="0 0 20 20">
+                                    <circle cx="10" cy="10" r="8" fill="#22c55e" />
+                                    <circle cx="10" cy="10" r="3" fill="#fff" />
                                 </svg>
                             </span>
                             Starting Point
@@ -50,10 +115,10 @@
                     <div class="input-group">
                         <label for="end-location">
                             <span class="label-icon dest-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                    <path
-                                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z">
-                                    </path>
+                                <svg width="18" height="24" viewBox="0 0 20 28">
+                                    <path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z"
+                                        fill="#ef4444" />
+                                    <circle cx="10" cy="9" r="3.5" fill="#fff" />
                                 </svg>
                             </span>
                             Destination

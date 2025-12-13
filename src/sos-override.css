@@ -134,21 +134,9 @@
     }
 }
 
-/* Mobile responsive */
+/* Mobile responsive - HIDE the big SOS on mobile (use mobile-sos-btn instead) */
 @media (max-width: 768px) {
     .sos-btn {
-        top: 16px !important;
-        right: 16px !important;
-        padding: 12px 20px !important;
-        min-width: 110px !important;
-        font-size: 14px !important;
-    }
-
-    .sos-icon {
-        font-size: 18px !important;
-    }
-
-    .sos-text {
-        font-size: 14px !important;
+        display: none !important;
     }
 }
