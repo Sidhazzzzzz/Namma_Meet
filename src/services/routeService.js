@@ -1,19 +1,21 @@
 /**
  * Route Service
- * Fetches routes from OSRM API with fallback servers
+ * Fetches routes from OSRM API with fallback servers and TomTom backup
  */
 
 import { HOSPITALS, POLICE_STATIONS } from './facilityData.js';
 
-// OSRM server endpoints - all via Vite proxy to avoid CORS issues
+// OSRM server endpoints - via proxy to avoid CORS issues
 const OSRM_SERVERS = [
-    '/api/osrm',   // Primary: router.project-osrm.org
-    '/api/osrm2',  // Fallback 1: routing.openstreetmap.de (car)
-    '/api/osrm3'   // Fallback 2: router.project-osrm.org (retry)
+    '/api/osrm',       // Primary: router.project-osrm.org (driving)
+    '/api/osrm-car'    // Fallback: routing.openstreetmap.de/routed-car
 ];
 
+// TomTom Routing API proxy (backup when all OSRM servers fail)
+// API key is added server-side by Cloudflare Function for security
+
 // Retry configuration for transient errors
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 1; // 1 retry = 2 total attempts per server
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
 /**
@@ -61,7 +63,7 @@ async function fetchWithRetry(url, retries = MAX_RETRIES, retryDelay = INITIAL_R
 
         // Check for retryable server errors
         if ((response.status === 502 || response.status === 503 || response.status === 504) && retries > 0) {
-            console.warn(`OSRM API returned ${response.status}, retrying in ${retryDelay}ms... (${retries} retries left)`);
+            console.warn(`API returned ${response.status}, retrying in ${retryDelay}ms... (${retries} retries left)`);
             await delay(retryDelay);
             return fetchWithRetry(url, retries - 1, retryDelay * 2);
         }
@@ -70,7 +72,7 @@ async function fetchWithRetry(url, retries = MAX_RETRIES, retryDelay = INITIAL_R
     } catch (error) {
         // Network errors (e.g., connection refused, timeout)
         if (retries > 0) {
-            console.warn(`OSRM fetch failed: ${error.message}, retrying in ${retryDelay}ms... (${retries} retries left)`);
+            console.warn(`Fetch failed: ${error.message}, retrying in ${retryDelay}ms... (${retries} retries left)`);
             await delay(retryDelay);
             return fetchWithRetry(url, retries - 1, retryDelay * 2);
         }
@@ -106,7 +108,7 @@ async function fetchFromOSRMServers(coordinates, params) {
                 throw new Error(`OSRM error: ${data.message || 'Unknown error'}`);
             }
 
-            console.log(`Successfully got routes from server ${i + 1}`);
+            console.log(`Successfully got routes from OSRM server ${i + 1}`);
             return data;
 
         } catch (error) {
@@ -116,8 +118,64 @@ async function fetchFromOSRMServers(coordinates, params) {
         }
     }
 
-    // All servers failed
+    // All OSRM servers failed
     throw lastError || new Error('All OSRM servers failed');
+}
+
+/**
+ * Fetch routes from TomTom Routing API (backup provider)
+ * Uses proxy to keep API key secure in production
+ * @param {Object} start - Starting coordinates {lat, lon}
+ * @param {Object} end - Ending coordinates {lat, lon}
+ * @returns {Promise<Object>} Route data in OSRM-compatible format
+ */
+async function fetchFromTomTom(start, end) {
+    console.log('Trying TomTom Routing as backup...');
+
+    // TomTom Calculate Route API via proxy (API key added server-side)
+    // Format: /calculateRoute/{locations}/json
+    const locations = `${start.lat},${start.lon}:${end.lat},${end.lon}`;
+    const url = `/api/tomtom-routing/calculateRoute/${locations}/json?maxAlternatives=2&routeType=fastest&traffic=true&travelMode=car`;
+
+    try {
+        const response = await fetchWithRetry(url);
+
+        if (!response.ok) {
+            throw new Error(`TomTom API failed: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(`TomTom error: ${data.error.description || 'Unknown error'}`);
+        }
+
+        console.log('Successfully got routes from TomTom');
+
+        // Convert TomTom response to OSRM-compatible format
+        return {
+            code: 'Ok',
+            routes: data.routes.map(route => ({
+                geometry: {
+                    type: 'LineString',
+                    coordinates: route.legs[0].points.map(p => [p.longitude, p.latitude])
+                },
+                distance: route.summary.lengthInMeters,
+                duration: route.summary.travelTimeInSeconds,
+                legs: [{
+                    steps: route.guidance ? route.guidance.instructions.map(inst => ({
+                        name: inst.street || '',
+                        distance: inst.routeOffsetInMeters || 0,
+                        duration: inst.travelTimeInSeconds || 0,
+                        maneuver: { type: inst.maneuver }
+                    })) : []
+                }]
+            }))
+        };
+    } catch (error) {
+        console.error('TomTom failed:', error.message);
+        throw error;
+    }
 }
 
 /**
@@ -127,32 +185,41 @@ async function fetchFromOSRMServers(coordinates, params) {
  * @returns {Promise<Array>} Array of route objects
  */
 export async function getRoutes(start, end) {
+    // OSRM expects lon,lat format
+    const coordinates = `${start.lon},${start.lat};${end.lon},${end.lat}`;
+
+    const params = new URLSearchParams({
+        overview: 'full',
+        geometries: 'geojson',
+        steps: 'true',
+        alternatives: 'true', // Request alternative routes
+    });
+
+    let data;
+
     try {
-        // OSRM expects lon,lat format
-        const coordinates = `${start.lon},${start.lat};${end.lon},${end.lat}`;
-
-        const params = new URLSearchParams({
-            overview: 'full',
-            geometries: 'geojson',
-            steps: 'true',
-            alternatives: 'true', // Request alternative routes
-        });
-
-        const data = await fetchFromOSRMServers(coordinates, params);
-
-        // Return all routes (main + alternatives)
-        return data.routes.map((route, index) => ({
-            id: `route-${index}`,
-            geometry: route.geometry,
-            distance: route.distance, // in meters
-            duration: route.duration, // in seconds
-            steps: route.legs[0].steps,
-            originalDuration: route.duration // Keep original for reference
-        }));
-    } catch (error) {
-        console.error('Route fetching error:', error);
-        throw error;
+        // Try OSRM servers first
+        data = await fetchFromOSRMServers(coordinates, params);
+    } catch (osrmError) {
+        console.warn('All OSRM servers failed, trying TomTom backup...');
+        try {
+            // Fall back to TomTom
+            data = await fetchFromTomTom(start, end);
+        } catch (tomtomError) {
+            console.error('All routing providers failed');
+            throw new Error('Unable to find routes. All routing servers are currently unavailable. Please try again later.');
+        }
     }
+
+    // Return all routes (main + alternatives)
+    return data.routes.map((route, index) => ({
+        id: `route-${index}`,
+        geometry: route.geometry,
+        distance: route.distance, // in meters
+        duration: route.duration, // in seconds
+        steps: route.legs[0].steps,
+        originalDuration: route.duration // Keep original for reference
+    }));
 }
 
 /**

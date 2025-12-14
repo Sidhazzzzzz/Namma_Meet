@@ -5,26 +5,24 @@ export default defineConfig({
         port: 8080,
         open: true,
         proxy: {
-            // OSRM Primary - Project OSRM
+            // OSRM Primary - Project OSRM (driving)
             '/api/osrm': {
                 target: 'https://router.project-osrm.org',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api\/osrm/, '')
             },
-            // OSRM Fallback 1 - OpenStreetMap Germany (car)
-            '/api/osrm2': {
+            // OSRM Fallback - OpenStreetMap Germany (car)
+            '/api/osrm-car': {
                 target: 'https://routing.openstreetmap.de/routed-car',
                 changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/osrm2/, '')
+                rewrite: (path) => path.replace(/^\/api\/osrm-car/, '')
             },
-            // OSRM Fallback 2 - Project OSRM (retry)
-            '/api/osrm3': {
-                target: 'https://router.project-osrm.org',
+            // TomTom Routing Fallback (uses existing API key)
+            '/api/tomtom-routing': {
+                target: 'https://api.tomtom.com/routing/1',
                 changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api\/osrm3/, '')
+                rewrite: (path) => path.replace(/^\/api\/tomtom-routing/, '')
             }
         }
     }
 });
-
-

@@ -1641,7 +1641,7 @@ async function findSafeRoutes() {
             route.delayDetails = adjustment.delays;
         });
 
-        // 3. Smart Sorting: Safety Tier > Adjusted Duration
+        // 3. Smart Sorting: Safety Tier > Time (if diff > 20min) > Safety Score (if diff > 10) > Duration
         routesWithSafety.sort((a, b) => {
             // Helper to get tier (3=High, 2=Medium, 1=Low)
             const getTier = (score) => {
@@ -1658,7 +1658,22 @@ async function findSafeRoutes() {
                 return tierB - tierA;
             }
 
-            // Priority 2: Duration (Lower is better) - optimising within the same safety comfort zone
+            // Within same tier, check thresholds
+            const scoreDiff = Math.abs(a.safetyScore - b.safetyScore);
+            const timeDiff = Math.abs(a.duration - b.duration); // in seconds
+            const timeDiffMinutes = timeDiff / 60;
+
+            // Priority 2: If time difference > 20 minutes, prioritize faster route
+            if (timeDiffMinutes > 20) {
+                return a.duration - b.duration;
+            }
+
+            // Priority 3: If safety score difference > 10, prioritize higher safety
+            if (scoreDiff > 10) {
+                return b.safetyScore - a.safetyScore;
+            }
+
+            // Priority 4: Otherwise, prioritize faster duration
             return a.duration - b.duration;
         });
 

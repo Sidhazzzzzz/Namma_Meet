@@ -1,13 +1,15 @@
 export async function onRequest(context) {
     const url = new URL(context.request.url);
-    const path = url.pathname.replace(/^\/api\/osrm3/, '');
-    const targetUrl = 'https://router.project-osrm.org' + path + url.search;
+    // Strip the /api/osrm-car prefix to get the path for the upstream server
+    const path = url.pathname.replace(/^\/api\/osrm-car/, '');
+    const targetUrl = 'https://routing.openstreetmap.de/routed-car' + path + url.search;
 
     try {
         const response = await fetch(targetUrl, {
             method: context.request.method,
-            headers: context.request.headers,
-            body: context.request.body,
+            headers: {
+                'User-Agent': 'NammaDaari/1.0'
+            }
         });
         return response;
     } catch (err) {
