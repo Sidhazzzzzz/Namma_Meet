@@ -14,6 +14,14 @@ import { getCrimeData, calculateSafetyScore, getSafetyLevel, getRouteColor } fro
 import { getRoutes, formatDistance, formatDuration, findNearestFacilities, calculateAdjustedDuration } from './src/services/routeService.js';
 import { HOSPITALS, POLICE_STATIONS } from './src/services/facilityData.js';
 import { metroData } from './data/metroData.js';
+import {
+    PERSON_COLORS,
+    calculateCentroid,
+    searchVenues,
+    geocodeLocation as geocodeLocationMeeting,
+    calculateRoute,
+    generateDirectionsUrl
+} from './src/services/meetingService.js';
 
 
 
@@ -148,18 +156,16 @@ async function fetchSuggestions(query, retries = 1) {
     if (!query || query.length < 2) return []; // TomTom works with 2+ chars
 
     try {
-        const params = new URLSearchParams({
-            query: query,
-            lat: userLocation.lat,
-            lon: userLocation.lon,
-            limit: '5'
-        });
+        const TOMTOM_API_KEY = 'sdzQqXJ0hQKanaHi0jmyNwqcuBokTRwY';
+        const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent(query)}.json?` +
+            `key=${TOMTOM_API_KEY}` +
+            `&limit=5` +
+            `&countrySet=IN` +
+            `&lat=${userLocation.lat}` +
+            `&lon=${userLocation.lon}` +
+            `&radius=50000`;
 
-        const response = await fetchWithTimeout(
-            `/api/tomtom-search?${params}`,
-            {},
-            5000 // 5 second timeout
-        );
+        const response = await fetchWithTimeout(url, {}, 5000);
 
         if (!response.ok) {
             if ((response.status >= 500 || response.status === 429) && retries > 0) {
@@ -175,9 +181,9 @@ async function fetchSuggestions(query, retries = 1) {
 
         // Transform to format expected by showSuggestions
         return (data.results || []).map(result => ({
-            display_name: result.display_name,
-            lat: result.lat,
-            lon: result.lon
+            display_name: result.address?.freeformAddress || result.poi?.name || 'Unknown',
+            lat: result.position.lat,
+            lon: result.position.lon
         }));
     } catch (error) {
         console.error('Autocomplete error:', error);
@@ -1754,54 +1760,119 @@ async function findSafeRoutes() {
 document.addEventListener('DOMContentLoaded', () => {
     initializeMap();
 
-    document.getElementById('find-routes-btn').addEventListener('click', findSafeRoutes);
+    // Find Routes Button
+    const findRoutesBtn = document.getElementById('find-routes-btn');
+    if (findRoutesBtn) {
+        findRoutesBtn.addEventListener('click', findSafeRoutes);
+    }
 
-    document.getElementById('start-location').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') findSafeRoutes();
-    });
+    // Input field enter key handlers
+    const startInput = document.getElementById('start-location');
+    const endInput = document.getElementById('end-location');
 
-    document.getElementById('end-location').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') findSafeRoutes();
-    });
+    if (startInput) {
+        startInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') findSafeRoutes();
+        });
+        setupAutocomplete('start-location');
+    }
 
-    document.getElementById('metro-btn').addEventListener('click', toggleMetroStops);
-    document.getElementById('bmtc-btn').addEventListener('click', toggleBmtcRoutes);
+    if (endInput) {
+        endInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') findSafeRoutes();
+        });
+        setupAutocomplete('end-location');
+    }
 
-    setupAutocomplete('start-location');
-    setupAutocomplete('end-location');
+    // Quick Action Buttons
+    const metroBtn = document.getElementById('metro-btn');
+    const bmtcBtn = document.getElementById('bmtc-btn');
+    const accidentsBtn = document.getElementById('accidents-btn');
+    const facilitiesBtn = document.getElementById('facilities-btn');
+
+    if (metroBtn) metroBtn.addEventListener('click', toggleMetroStops);
+    if (bmtcBtn) bmtcBtn.addEventListener('click', toggleBmtcRoutes);
+    if (accidentsBtn) accidentsBtn.addEventListener('click', toggleAccidents);
+    if (facilitiesBtn) facilitiesBtn.addEventListener('click', toggleFacilities);
 
     // SOS Button Handler
     const sosBtn = document.getElementById('sos-btn');
-
     if (sosBtn) {
         sosBtn.addEventListener('click', () => {
-            alert('Emergency message sent to server! Help is on the way.');
-        });
-    }
-
-    // Premium button hover spotlight effect
-    const findBtn = document.getElementById('find-routes-btn');
-    if (findBtn) {
-        findBtn.addEventListener('mousemove', (e) => {
-            const rect = findBtn.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            const y = ((e.clientY - rect.top) / rect.height) * 100;
-            findBtn.style.setProperty('--mouse-x', `${x}%`);
-            findBtn.style.setProperty('--mouse-y', `${y}%`);
-        });
-
-        findBtn.addEventListener('mouseleave', () => {
-            findBtn.style.setProperty('--mouse-x', '50%');
-            findBtn.style.setProperty('--mouse-y', '50%');
+            alert('Emergency message sent! Help is on the way.');
         });
     }
 
     // ========================================
-    // Mobile Panel Functionality
+    // Unified Sidebar Mode Switching
     // ========================================
-    initMobilePanel();
-    initMobileSearchPanel();
+    initUnifiedSidebar();
+
+    // ========================================
+    // Group Meet Panel Functionality
+    // ========================================
+    initGroupMeetPanel();
 });
+
+// ========================================
+// Unified Sidebar Mode & Collapse
+// ========================================
+function initUnifiedSidebar() {
+    const sidebar = document.getElementById('floating-sidebar');
+    const soloModeBtn = document.getElementById('solo-mode-btn');
+    const groupModeBtn = document.getElementById('group-mode-btn');
+    const soloContent = document.getElementById('solo-content');
+    const groupContent = document.getElementById('group-content');
+    const collapseBtn = document.getElementById('sidebar-collapse');
+    const expandBtn = document.getElementById('sidebar-expand');
+
+    // Mode switching
+    if (soloModeBtn && groupModeBtn) {
+        soloModeBtn.addEventListener('click', () => {
+            soloModeBtn.classList.add('active');
+            groupModeBtn.classList.remove('active');
+            if (soloContent) soloContent.classList.remove('hidden');
+            if (groupContent) groupContent.classList.add('hidden');
+            clearGroupFromMap();
+        });
+
+        groupModeBtn.addEventListener('click', () => {
+            groupModeBtn.classList.add('active');
+            soloModeBtn.classList.remove('active');
+            if (groupContent) groupContent.classList.remove('hidden');
+            if (soloContent) soloContent.classList.add('hidden');
+            clearRoutes();
+            renderPersonInputs();
+        });
+    }
+
+    // Sidebar collapse/expand
+    if (collapseBtn && sidebar && expandBtn) {
+        collapseBtn.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+            expandBtn.classList.remove('hidden');
+        });
+
+        expandBtn.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+            expandBtn.classList.add('hidden');
+        });
+    }
+
+    // Category chip selection
+    const categoryChips = document.querySelectorAll('.category-chip');
+    const categoryInput = document.getElementById('venue-category');
+
+    categoryChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            categoryChips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            if (categoryInput) {
+                categoryInput.value = chip.dataset.category;
+            }
+        });
+    });
+}
 
 // ========================================
 // Mobile Panel Drag & State Management
@@ -2135,3 +2206,873 @@ function initMobileSearchPanel() {
         });
     }
 }
+
+// ========================================
+// Mobile Bottom Sheet - Google Maps Style Draggable
+// ========================================
+function initMobileBottomSheet() {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobile) return;
+
+    const sheet = document.getElementById('mobile-sheet');
+    const handle = document.getElementById('sheet-handle');
+    const content = document.getElementById('sheet-content');
+
+    if (!sheet || !handle) return;
+
+    // Sheet state
+    let startY = 0;
+    let startTranslateY = 0;
+    let isDragging = false;
+    let lastY = 0;
+    let lastTime = 0;
+    let velocity = 0;
+
+    // Snap positions (percentage of sheet height visible)
+    const SNAP_PEEK = 140;      // px from bottom
+    const SNAP_HALF = 50;        // percentage
+    const SNAP_EXPANDED = 0;     // percentage (fully visible)
+
+    // Get current translateY from transform
+    function getTranslateY() {
+        const transform = window.getComputedStyle(sheet).transform;
+        if (transform === 'none') return 0;
+        const matrix = new DOMMatrix(transform);
+        return matrix.m42;
+    }
+
+    // Calculate snap position based on velocity and current position
+    function getSnapPosition(currentY, vel) {
+        const sheetHeight = sheet.offsetHeight;
+        const vh = window.innerHeight;
+
+        const peekY = sheetHeight - SNAP_PEEK;
+        const halfY = sheetHeight * (SNAP_HALF / 100);
+        const expandedY = SNAP_EXPANDED;
+
+        // If strong upward velocity, go to expanded or half
+        if (vel < -0.5) {
+            if (currentY > halfY) return halfY;
+            return expandedY;
+        }
+
+        // If strong downward velocity, go to half or peek
+        if (vel > 0.5) {
+            if (currentY < halfY) return halfY;
+            return peekY;
+        }
+
+        // Otherwise snap to nearest
+        const distToPeek = Math.abs(currentY - peekY);
+        const distToHalf = Math.abs(currentY - halfY);
+        const distToExpanded = Math.abs(currentY - expandedY);
+
+        const minDist = Math.min(distToPeek, distToHalf, distToExpanded);
+
+        if (minDist === distToExpanded) return expandedY;
+        if (minDist === distToHalf) return halfY;
+        return peekY;
+    }
+
+    // Update sheet class based on position
+    function updateSheetClass(translateY) {
+        const sheetHeight = sheet.offsetHeight;
+        const peekY = sheetHeight - SNAP_PEEK;
+        const halfY = sheetHeight * (SNAP_HALF / 100);
+
+        sheet.classList.remove('peek', 'half', 'expanded');
+
+        if (translateY >= peekY - 20) {
+            sheet.classList.add('peek');
+        } else if (translateY <= 20) {
+            sheet.classList.add('expanded');
+        } else {
+            sheet.classList.add('half');
+        }
+    }
+
+    // Pointer/Touch start
+    function onDragStart(e) {
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+
+        isDragging = true;
+        startY = clientY;
+        startTranslateY = getTranslateY();
+        lastY = clientY;
+        lastTime = Date.now();
+        velocity = 0;
+
+        sheet.classList.add('dragging');
+    }
+
+    // Pointer/Touch move
+    function onDragMove(e) {
+        if (!isDragging) return;
+
+        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        const deltaY = clientY - startY;
+        let newTranslateY = startTranslateY + deltaY;
+
+        // Clamp to valid range
+        const sheetHeight = sheet.offsetHeight;
+        const maxTranslateY = sheetHeight - SNAP_PEEK;
+        newTranslateY = Math.max(0, Math.min(newTranslateY, maxTranslateY));
+
+        // Calculate velocity
+        const now = Date.now();
+        const dt = now - lastTime;
+        if (dt > 0) {
+            velocity = (clientY - lastY) / dt;
+        }
+        lastY = clientY;
+        lastTime = now;
+
+        sheet.style.transform = `translateY(${newTranslateY}px)`;
+    }
+
+    // Pointer/Touch end
+    function onDragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+
+        sheet.classList.remove('dragging');
+
+        const currentTranslateY = getTranslateY();
+        const snapPosition = getSnapPosition(currentTranslateY, velocity);
+
+        sheet.style.transform = `translateY(${snapPosition}px)`;
+        updateSheetClass(snapPosition);
+    }
+
+    // Add event listeners for drag
+    handle.addEventListener('touchstart', onDragStart, { passive: true });
+    handle.addEventListener('mousedown', onDragStart);
+
+    document.addEventListener('touchmove', onDragMove, { passive: true });
+    document.addEventListener('mousemove', onDragMove);
+
+    document.addEventListener('touchend', onDragEnd);
+    document.addEventListener('mouseup', onDragEnd);
+
+    // Allow dragging from content when not at scroll top and expanded
+    content.addEventListener('touchstart', (e) => {
+        if (sheet.classList.contains('expanded') && content.scrollTop > 0) {
+            return; // Allow normal scroll
+        }
+        if (!sheet.classList.contains('expanded')) {
+            onDragStart(e);
+        }
+    }, { passive: true });
+
+    // Initialize in peek state
+    const sheetHeight = sheet.offsetHeight;
+    sheet.style.transform = `translateY(${sheetHeight - SNAP_PEEK}px)`;
+    sheet.classList.add('peek');
+
+    // Handle tap on handle to toggle states
+    let tapStartTime = 0;
+    let tapStartY = 0;
+
+    handle.addEventListener('touchstart', (e) => {
+        tapStartTime = Date.now();
+        tapStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    handle.addEventListener('touchend', (e) => {
+        const tapDuration = Date.now() - tapStartTime;
+        const tapDistance = Math.abs(e.changedTouches[0].clientY - tapStartY);
+
+        // If it was a tap (short duration, small movement)
+        if (tapDuration < 200 && tapDistance < 10) {
+            const sheetHeight = sheet.offsetHeight;
+            const currentY = getTranslateY();
+            const peekY = sheetHeight - SNAP_PEEK;
+            const halfY = sheetHeight * (SNAP_HALF / 100);
+
+            // Cycle through states: peek -> half -> expanded -> peek
+            let newY;
+            if (currentY > halfY) {
+                newY = halfY;
+            } else if (currentY > 20) {
+                newY = 0;
+            } else {
+                newY = peekY;
+            }
+
+            sheet.style.transform = `translateY(${newY}px)`;
+            updateSheetClass(newY);
+        }
+    });
+
+    // ========================================
+    // Sync Mobile Inputs with Desktop
+    // ========================================
+    const mobileStartInput = document.getElementById('mobile-start-location');
+    const mobileEndInput = document.getElementById('mobile-end-location');
+    const desktopStartInput = document.getElementById('start-location');
+    const desktopEndInput = document.getElementById('end-location');
+
+    // Setup autocomplete for mobile inputs
+    setupAutocomplete('mobile-start-location');
+    setupAutocomplete('mobile-end-location');
+
+    // Sync mobile -> desktop
+    if (mobileStartInput) {
+        mobileStartInput.addEventListener('input', () => {
+            requestAnimationFrame(() => {
+                if (desktopStartInput) desktopStartInput.value = mobileStartInput.value;
+            });
+        });
+    }
+
+    if (mobileEndInput) {
+        mobileEndInput.addEventListener('input', () => {
+            requestAnimationFrame(() => {
+                if (desktopEndInput) desktopEndInput.value = mobileEndInput.value;
+            });
+        });
+    }
+
+    // Mobile Find Routes button
+    const mobileFindRoutesBtn = document.getElementById('mobile-find-routes-btn');
+    if (mobileFindRoutesBtn) {
+        mobileFindRoutesBtn.addEventListener('click', () => {
+            // Sync coordinates if available
+            if (mobileStartInput && desktopStartInput) {
+                desktopStartInput.value = mobileStartInput.value;
+                if (mobileStartInput.dataset.lat) {
+                    desktopStartInput.dataset.lat = mobileStartInput.dataset.lat;
+                    desktopStartInput.dataset.lon = mobileStartInput.dataset.lon;
+                }
+            }
+            if (mobileEndInput && desktopEndInput) {
+                desktopEndInput.value = mobileEndInput.value;
+                if (mobileEndInput.dataset.lat) {
+                    desktopEndInput.dataset.lat = mobileEndInput.dataset.lat;
+                    desktopEndInput.dataset.lon = mobileEndInput.dataset.lon;
+                }
+            }
+
+            // Trigger route finding
+            findSafeRoutes();
+
+            // Expand sheet to show results
+            setTimeout(() => {
+                const halfY = sheet.offsetHeight * (SNAP_HALF / 100);
+                sheet.style.transform = `translateY(${halfY}px)`;
+                updateSheetClass(halfY);
+            }, 500);
+        });
+    }
+
+    // ========================================
+    // Mobile Mode Toggle
+    // ========================================
+    const mobileSoloBtn = document.getElementById('mobile-solo-mode-btn');
+    const mobileGroupBtn = document.getElementById('mobile-group-mode-btn');
+    const mobileSoloContent = document.getElementById('mobile-solo-content');
+    const mobileGroupContent = document.getElementById('mobile-group-content');
+
+    // Also sync with desktop mode buttons
+    const desktopSoloBtn = document.getElementById('solo-mode-btn');
+    const desktopGroupBtn = document.getElementById('group-mode-btn');
+
+    function setMobileMode(mode) {
+        if (mode === 'solo') {
+            mobileSoloBtn?.classList.add('active');
+            mobileGroupBtn?.classList.remove('active');
+            mobileSoloContent?.classList.remove('hidden');
+            mobileGroupContent?.classList.add('hidden');
+            // Sync desktop
+            desktopSoloBtn?.click();
+        } else {
+            mobileSoloBtn?.classList.remove('active');
+            mobileGroupBtn?.classList.add('active');
+            mobileSoloContent?.classList.add('hidden');
+            mobileGroupContent?.classList.remove('hidden');
+            // Sync desktop
+            desktopGroupBtn?.click();
+            // Initialize mobile group inputs
+            initMobileGroupMeet();
+        }
+    }
+
+    mobileSoloBtn?.addEventListener('click', () => setMobileMode('solo'));
+    mobileGroupBtn?.addEventListener('click', () => setMobileMode('group'));
+
+    // ========================================
+    // Mobile Quick Actions
+    // ========================================
+    document.getElementById('mobile-metro-btn')?.addEventListener('click', () => {
+        document.getElementById('metro-btn')?.click();
+    });
+    document.getElementById('mobile-bmtc-btn')?.addEventListener('click', () => {
+        document.getElementById('bmtc-btn')?.click();
+    });
+    document.getElementById('mobile-accidents-btn')?.addEventListener('click', () => {
+        document.getElementById('accidents-btn')?.click();
+    });
+
+    // Expand sheet when inputs are focused
+    if (mobileStartInput) {
+        mobileStartInput.addEventListener('focus', () => {
+            sheet.style.transform = 'translateY(0)';
+            updateSheetClass(0);
+        });
+    }
+    if (mobileEndInput) {
+        mobileEndInput.addEventListener('focus', () => {
+            sheet.style.transform = 'translateY(0)';
+            updateSheetClass(0);
+        });
+    }
+}
+
+// Initialize mobile group meet for the mobile sheet
+function initMobileGroupMeet() {
+    const mobileAddBtn = document.getElementById('mobile-add-person-btn');
+    const mobileFindMeetingBtn = document.getElementById('mobile-find-meeting-btn');
+    const mobileLocationsList = document.getElementById('mobile-group-locations-list');
+    const mobileCategoryChips = document.querySelectorAll('#mobile-group-content .category-chip');
+
+    if (!mobileLocationsList) return;
+
+    // Render person inputs for mobile
+    mobileLocationsList.innerHTML = '';
+
+    groupLocations.forEach((person, index) => {
+        const row = document.createElement('div');
+        row.className = 'person-input-row';
+        row.innerHTML = `
+            <span class="person-color-dot" style="background-color: ${PERSON_COLORS[index]}"></span>
+            <span class="person-label">Person ${index + 1}</span>
+            <input 
+                type="text" 
+                class="person-input mobile-person-input" 
+                placeholder="Enter location..."
+                value="${person.name}"
+                data-person-id="${person.id}"
+                autocomplete="off"
+            >
+            <button class="remove-person-btn ${groupLocations.length <= 2 ? 'disabled' : ''}" data-person-id="${person.id}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"></path>
+                </svg>
+            </button>
+        `;
+
+        mobileLocationsList.appendChild(row);
+
+        const input = row.querySelector('.person-input');
+        setupPersonAutocomplete(input, person.id);
+
+        const removeBtn = row.querySelector('.remove-person-btn');
+        if (removeBtn && groupLocations.length > 2) {
+            removeBtn.addEventListener('click', () => {
+                groupLocations = groupLocations.filter(p => p.id !== person.id);
+                renderPersonInputs(); // Desktop
+                initMobileGroupMeet(); // Mobile
+            });
+        }
+    });
+
+    // Add person button
+    if (mobileAddBtn) {
+        mobileAddBtn.onclick = () => {
+            if (groupLocations.length < 6) {
+                groupLocations.push({
+                    id: nextPersonId++,
+                    name: '',
+                    lat: null,
+                    lon: null
+                });
+                renderPersonInputs(); // Desktop
+                initMobileGroupMeet(); // Mobile
+            }
+        };
+        mobileAddBtn.disabled = groupLocations.length >= 6;
+    }
+
+    // Category chips
+    mobileCategoryChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            mobileCategoryChips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            document.getElementById('mobile-venue-category').value = chip.dataset.category;
+            // Sync desktop
+            document.getElementById('venue-category').value = chip.dataset.category;
+        });
+    });
+
+    // Find meeting spot button
+    if (mobileFindMeetingBtn) {
+        mobileFindMeetingBtn.onclick = findMeetingSpot;
+    }
+}
+
+// Call initMobileBottomSheet on load
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initMobileBottomSheet, 100);
+});
+
+// ========================================
+// Group Meet Panel Functionality
+// ========================================
+
+// Group Meet State
+let groupLocations = [
+    { id: 1, name: '', lat: null, lon: null },
+    { id: 2, name: '', lat: null, lon: null }
+];
+let nextPersonId = 3;
+let groupMarkers = [];
+let groupRouteLines = [];
+let meetingPointMarker = null;
+let selectedVenue = null;
+
+function initGroupMeetPanel() {
+    const addPersonBtn = document.getElementById('add-person-btn');
+    const findMeetingBtn = document.getElementById('find-meeting-btn');
+
+    // Add person button
+    if (addPersonBtn) {
+        addPersonBtn.addEventListener('click', () => {
+            if (groupLocations.length < 6) {
+                groupLocations.push({
+                    id: nextPersonId++,
+                    name: '',
+                    lat: null,
+                    lon: null
+                });
+                renderPersonInputs();
+                updateAddButtonState();
+            }
+        });
+    }
+
+    // Find meeting spot button
+    if (findMeetingBtn) {
+        findMeetingBtn.addEventListener('click', findMeetingSpot);
+    }
+
+    // Initial render of person inputs
+    renderPersonInputs();
+}
+
+function renderPersonInputs() {
+    const container = document.getElementById('group-locations-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    groupLocations.forEach((person, index) => {
+        const row = document.createElement('div');
+        row.className = 'person-input-row';
+        row.innerHTML = `
+            <span class="person-color-dot person-color-${index + 1}" style="background-color: ${PERSON_COLORS[index]}"></span>
+            <span class="person-label">Person ${index + 1}</span>
+            <input 
+                type="text" 
+                class="person-input" 
+                placeholder="Enter location..."
+                value="${person.name}"
+                data-person-id="${person.id}"
+                autocomplete="off"
+            >
+            <button class="remove-person-btn ${groupLocations.length <= 2 ? 'disabled' : ''}" data-person-id="${person.id}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"></path>
+                </svg>
+            </button>
+        `;
+
+        container.appendChild(row);
+
+        // Setup autocomplete for person input
+        const input = row.querySelector('.person-input');
+        setupPersonAutocomplete(input, person.id);
+
+        // Remove person handler
+        const removeBtn = row.querySelector('.remove-person-btn');
+        if (removeBtn && groupLocations.length > 2) {
+            removeBtn.addEventListener('click', () => {
+                groupLocations = groupLocations.filter(p => p.id !== person.id);
+                renderPersonInputs();
+                updateAddButtonState();
+            });
+        }
+    });
+
+    updateAddButtonState();
+}
+
+function setupPersonAutocomplete(input, personId) {
+    let debounceTimer;
+
+    input.addEventListener('input', function () {
+        const query = this.value;
+        const personIndex = groupLocations.findIndex(p => p.id === personId);
+
+        if (personIndex !== -1) {
+            groupLocations[personIndex].name = query;
+            groupLocations[personIndex].lat = null;
+            groupLocations[personIndex].lon = null;
+        }
+
+        clearTimeout(debounceTimer);
+
+        // Remove existing dropdown
+        const existingList = input.parentNode.querySelector('.group-autocomplete-items');
+        if (existingList) existingList.remove();
+
+        if (!query || query.length < 2) return;
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const suggestions = await fetchGroupSuggestions(query);
+                showGroupSuggestions(suggestions, input, personId);
+            } catch (error) {
+                console.error('Autocomplete error:', error);
+            }
+        }, 300);
+    });
+
+    // Close dropdown on blur
+    input.addEventListener('blur', () => {
+        setTimeout(() => {
+            const list = input.parentNode.querySelector('.group-autocomplete-items');
+            if (list) list.remove();
+        }, 200);
+    });
+}
+
+async function fetchGroupSuggestions(query) {
+    try {
+        const TOMTOM_API_KEY = 'sdzQqXJ0hQKanaHi0jmyNwqcuBokTRwY';
+        const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent(query)}.json?` +
+            `key=${TOMTOM_API_KEY}` +
+            `&limit=5` +
+            `&countrySet=IN` +
+            `&lat=12.9716` +
+            `&lon=77.5946` +
+            `&radius=50000`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        return (data.results || []).map(result => ({
+            display_name: result.address?.freeformAddress || result.poi?.name || 'Unknown',
+            lat: result.position.lat,
+            lon: result.position.lon
+        }));
+    } catch (error) {
+        console.error('TomTom search error:', error);
+        return [];
+    }
+}
+
+function showGroupSuggestions(suggestions, inputElement, personId) {
+    // Remove existing dropdown
+    const existingList = inputElement.parentNode.querySelector('.group-autocomplete-items');
+    if (existingList) existingList.remove();
+
+    if (suggestions.length === 0) return;
+
+    const list = document.createElement('div');
+    list.className = 'group-autocomplete-items autocomplete-items';
+    list.style.cssText = 'position: absolute; top: 100%; left: 0; right: 0; z-index: 3000; background: rgba(20,20,30,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-top: 4px; max-height: 200px; overflow-y: auto;';
+
+    suggestions.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'autocomplete-item';
+        div.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); color: #fff; font-size: 0.85rem;';
+        div.innerHTML = `<strong>${item.display_name.split(',')[0]}</strong><br><small style="color: rgba(255,255,255,0.5)">${item.display_name}</small>`;
+
+        div.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent blur
+            inputElement.value = item.display_name.split(',')[0];
+
+            const personIndex = groupLocations.findIndex(p => p.id === personId);
+            if (personIndex !== -1) {
+                groupLocations[personIndex].name = item.display_name.split(',')[0];
+                groupLocations[personIndex].lat = item.lat;
+                groupLocations[personIndex].lon = item.lon;
+            }
+
+            list.remove();
+        });
+
+        div.addEventListener('mouseenter', () => {
+            div.style.background = 'rgba(99,102,241,0.2)';
+        });
+        div.addEventListener('mouseleave', () => {
+            div.style.background = 'transparent';
+        });
+
+        list.appendChild(div);
+    });
+
+    inputElement.parentNode.style.position = 'relative';
+    inputElement.parentNode.appendChild(list);
+}
+
+function updateAddButtonState() {
+    const addBtn = document.getElementById('add-person-btn');
+    if (addBtn) {
+        addBtn.disabled = groupLocations.length >= 6;
+    }
+}
+
+async function findMeetingSpot() {
+    const findBtn = document.getElementById('find-meeting-btn');
+    const resultsContainer = document.getElementById('meeting-results');
+    const venueList = document.getElementById('venue-list');
+    const category = document.getElementById('venue-category')?.value || 'cafe';
+
+    // Validate locations
+    const validLocations = groupLocations.filter(p => p.lat && p.lon);
+    if (validLocations.length < 2) {
+        alert('Please enter at least 2 valid locations');
+        return;
+    }
+
+    // Show loading state
+    if (findBtn) {
+        findBtn.classList.add('loading');
+        findBtn.disabled = true;
+    }
+
+    try {
+        // Geocode any locations that don't have coordinates
+        for (let i = 0; i < groupLocations.length; i++) {
+            const person = groupLocations[i];
+            if (person.name && !person.lat) {
+                const result = await geocodeLocationMeeting(person.name);
+                if (result) {
+                    person.lat = result.lat;
+                    person.lon = result.lon;
+                }
+            }
+        }
+
+        const locationsWithCoords = groupLocations.filter(p => p.lat && p.lon);
+        if (locationsWithCoords.length < 2) {
+            alert('Could not find coordinates for some locations. Please try different addresses.');
+            return;
+        }
+
+        // Calculate centroid
+        const centroid = calculateCentroid(locationsWithCoords.map(p => ({
+            lat: p.lat,
+            lon: p.lon
+        })));
+
+        // Search for venues
+        const venues = await searchVenues(centroid, category, locationsWithCoords.map(p => ({
+            lat: p.lat,
+            lon: p.lon
+        })));
+
+        if (venues.length === 0) {
+            if (venueList) venueList.innerHTML = '<p style="color: rgba(255,255,255,0.5); text-align: center;">No venues found. Try a different category.</p>';
+            if (resultsContainer) resultsContainer.classList.remove('hidden');
+            return;
+        }
+
+        // Display venues
+        renderVenueList(venues, locationsWithCoords);
+        if (resultsContainer) resultsContainer.classList.remove('hidden');
+
+        // Show markers and routes on map
+        await showGroupOnMap(locationsWithCoords, venues[0]);
+
+    } catch (error) {
+        console.error('Error finding meeting spot:', error);
+        alert('An error occurred. Please try again.');
+    } finally {
+        if (findBtn) {
+            findBtn.classList.remove('loading');
+            findBtn.disabled = false;
+        }
+    }
+}
+
+function renderVenueList(venues, userLocations) {
+    const venueList = document.getElementById('venue-list');
+    if (!venueList) return;
+
+    venueList.innerHTML = '';
+
+    venues.forEach((venue, index) => {
+        const card = document.createElement('div');
+        card.className = `venue-card ${index === 0 ? 'selected' : ''}`;
+        card.innerHTML = `
+            <div class="venue-card-header">
+                <h4 class="venue-name">${venue.name}</h4>
+                <span class="venue-score">⭐ ${venue.scores.total}</span>
+            </div>
+            <p class="venue-address">${venue.address}</p>
+            <div class="venue-stats">
+                <span class="venue-stat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    Fairness: ${venue.scores.fairness}%
+                </span>
+                <span class="venue-stat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    Proximity: ${venue.scores.proximity}%
+                </span>
+            </div>
+        `;
+
+        card.addEventListener('click', async () => {
+            // Update selection
+            venueList.querySelectorAll('.venue-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedVenue = venue;
+
+            // Update map
+            await showGroupOnMap(userLocations, venue);
+        });
+
+        venueList.appendChild(card);
+    });
+}
+
+async function showGroupOnMap(userLocations, venue) {
+    if (!map) return;
+
+    // Clear previous group markers and routes
+    clearGroupFromMap();
+
+    // Add user markers
+    userLocations.forEach((person, index) => {
+        const el = document.createElement('div');
+        el.className = 'group-user-marker';
+        el.style.backgroundColor = PERSON_COLORS[index];
+        el.textContent = index + 1;
+
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([person.lon, person.lat])
+            .setPopup(new maplibregl.Popup({ offset: 25 }).setText(`Person ${index + 1}: ${groupLocations[index]?.name || 'Unknown'}`))
+            .addTo(map);
+
+        groupMarkers.push(marker);
+    });
+
+    // Add meeting point marker with professional SVG icon
+    const meetingEl = document.createElement('div');
+    meetingEl.className = 'meeting-point-marker';
+    meetingEl.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+        </svg>
+    `;
+
+    meetingPointMarker = new maplibregl.Marker({ element: meetingEl, anchor: 'center' })
+        .setLngLat([venue.lon, venue.lat])
+        .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`
+            <div style="padding: 8px;">
+                <strong style="color: #6366f1;">${venue.name}</strong><br>
+                <small>Score: ${venue.scores.total}/100</small>
+            </div>
+        `))
+        .addTo(map);
+
+    // Draw routes from each user to meeting point
+    for (let i = 0; i < userLocations.length; i++) {
+        const person = userLocations[i];
+        try {
+            const route = await calculateRoute(
+                { lat: person.lat, lon: person.lon },
+                { lat: venue.lat, lon: venue.lon }
+            );
+
+            if (route && route.coordinates) {
+                const sourceId = `group-route-${i}`;
+                const layerId = `group-route-line-${i}`;
+
+                // Add route source and layer
+                if (map.getSource(sourceId)) {
+                    map.getSource(sourceId).setData({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: route.coordinates
+                        }
+                    });
+                } else {
+                    map.addSource(sourceId, {
+                        type: 'geojson',
+                        data: {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'LineString',
+                                coordinates: route.coordinates
+                            }
+                        }
+                    });
+
+                    map.addLayer({
+                        id: layerId,
+                        type: 'line',
+                        source: sourceId,
+                        layout: {
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        },
+                        paint: {
+                            'line-color': PERSON_COLORS[i],
+                            'line-width': 4,
+                            'line-opacity': 0.8,
+                            'line-dasharray': [2, 1]
+                        }
+                    });
+                }
+
+                groupRouteLines.push({ sourceId, layerId });
+            }
+        } catch (error) {
+            console.error(`Error calculating route for person ${i + 1}:`, error);
+        }
+    }
+
+    // Fit map to show all markers
+    const bounds = new maplibregl.LngLatBounds();
+    userLocations.forEach(p => bounds.extend([p.lon, p.lat]));
+    bounds.extend([venue.lon, venue.lat]);
+
+    map.fitBounds(bounds, {
+        padding: { top: 80, bottom: 80, left: 100, right: 420 },
+        duration: 1500
+    });
+}
+
+function clearGroupFromMap() {
+    // Remove user markers
+    groupMarkers.forEach(marker => marker.remove());
+    groupMarkers = [];
+
+    // Remove meeting point marker
+    if (meetingPointMarker) {
+        meetingPointMarker.remove();
+        meetingPointMarker = null;
+    }
+
+    // Remove route layers and sources
+    groupRouteLines.forEach(({ sourceId, layerId }) => {
+        if (map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+        }
+        if (map.getSource(sourceId)) {
+            map.removeSource(sourceId);
+        }
+    });
+    groupRouteLines = [];
+}
+
