@@ -6,8 +6,7 @@
 // ========================================
 // Crime Service
 // ========================================
-const TOMTOM_API_KEY = import.meta.env.VITE_TOMTOM_API_KEY;
-const OPENWEATHER_API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
+// NOTE: API keys are now handled server-side via Cloudflare Functions for security
 
 import { ACCIDENT_DATA } from './src/services/accidentData.js';
 import { getCrimeData, calculateSafetyScore, getSafetyLevel, getRouteColor } from './src/services/safetyService.js';
@@ -156,18 +155,18 @@ async function fetchSuggestions(query, retries = 1) {
     if (!query || query.length < 2) return []; // TomTom works with 2+ chars
 
     try {
-        const TOMTOM_API_KEY = 'sdzQqXJ0hQKanaHi0jmyNwqcuBokTRwY';
-        const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent(query)}.json?` +
-            `key=${TOMTOM_API_KEY}` +
+        // Use secure proxy endpoint (API key is on server-side)
+        const url = `/api/tomtom-search?` +
+            `query=${encodeURIComponent(query)}` +
             `&limit=5` +
-            `&countrySet=IN` +
             `&lat=${userLocation.lat}` +
-            `&lon=${userLocation.lon}` +
-            `&radius=50000`;
+            `&lon=${userLocation.lon}`;
 
+        console.log('Fetching suggestions from:', url);
         const response = await fetchWithTimeout(url, {}, 5000);
 
         if (!response.ok) {
+            console.error('TomTom Search response not OK:', response.status);
             if ((response.status >= 500 || response.status === 429) && retries > 0) {
                 console.warn(`TomTom Search returned ${response.status}, retrying...`);
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -178,13 +177,17 @@ async function fetchSuggestions(query, retries = 1) {
         }
 
         const data = await response.json();
+        console.log('TomTom raw response:', data);
 
-        // Transform to format expected by showSuggestions
-        return (data.results || []).map(result => ({
+        // Handle raw TomTom response format
+        const results = data.results || [];
+        const mapped = results.map(result => ({
             display_name: result.address?.freeformAddress || result.poi?.name || 'Unknown',
-            lat: result.position.lat,
-            lon: result.position.lon
+            lat: result.position?.lat,
+            lon: result.position?.lon
         }));
+        console.log('Mapped suggestions:', mapped);
+        return mapped;
     } catch (error) {
         console.error('Autocomplete error:', error);
         if (retries > 0 && (error.message === 'Request timed out' || error.name === 'TypeError')) {
@@ -196,7 +199,10 @@ async function fetchSuggestions(query, retries = 1) {
     }
 }
 
+
 function showSuggestions(suggestions, inputElement) {
+    console.log('showSuggestions called with:', suggestions);
+
     let list = inputElement.nextElementSibling;
     if (!list || !list.classList.contains('autocomplete-items')) {
         list = document.createElement('div');
@@ -206,15 +212,17 @@ function showSuggestions(suggestions, inputElement) {
 
     list.innerHTML = '';
 
-    if (suggestions.length === 0) {
+    if (!suggestions || suggestions.length === 0) {
         list.innerHTML = '<div class="autocomplete-item">No results found</div>';
         return;
     }
 
     suggestions.forEach(item => {
+        if (!item) return;
+        const displayName = item.display_name || 'Unknown location';
         const div = document.createElement('div');
         div.classList.add('autocomplete-item');
-        div.innerHTML = `<strong>${item.display_name.split(',')[0]}</strong><small>${item.display_name}</small>`;
+        div.innerHTML = `<strong>${displayName.split(',')[0]}</strong><small>${displayName}</small>`;
         div.addEventListener('click', function () {
             inputElement.value = item.display_name;
             // Store coordinates to avoid re-geocoding
@@ -382,8 +390,9 @@ function setupAutocomplete(inputId) {
 // ========================================
 async function getWeather(lat, lon) {
     try {
+        // Use secure proxy endpoint (API key is on server-side)
         const response = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}&units=metric`
+            `/api/weather?lat=${lat}&lon=${lon}`
         );
 
         if (!response.ok) {
@@ -490,8 +499,77 @@ function initializeMap() {
         addAccidentLayer();
         addFacilityLayer();
 
-        document.getElementById('accidents-btn').addEventListener('click', toggleAccidents);
-        document.getElementById('facilities-btn').addEventListener('click', toggleFacilities);
+        // Desktop toggle button handlers
+        document.getElementById('accidents-btn').addEventListener('click', function () {
+            toggleAccidents();
+            this.classList.toggle('active');
+            // Sync mobile button
+            const mobileBtn = document.getElementById('mobile-accidents-btn');
+            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+        });
+        document.getElementById('facilities-btn').addEventListener('click', function () {
+            toggleFacilities();
+            this.classList.toggle('active');
+            // Sync mobile button
+            const mobileBtn = document.getElementById('mobile-facilities-btn');
+            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+        });
+        document.getElementById('metro-btn').addEventListener('click', function () {
+            toggleMetro();
+            this.classList.toggle('active');
+            // Sync mobile button
+            const mobileBtn = document.getElementById('mobile-metro-btn');
+            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+        });
+        document.getElementById('bmtc-btn').addEventListener('click', function () {
+            toggleBmtc();
+            this.classList.toggle('active');
+            // Sync mobile button
+            const mobileBtn = document.getElementById('mobile-bmtc-btn');
+            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+        });
+
+        // Mobile toggle button handlers
+        const mobileAccidentsBtn = document.getElementById('mobile-accidents-btn');
+        if (mobileAccidentsBtn) {
+            mobileAccidentsBtn.addEventListener('click', function () {
+                toggleAccidents();
+                this.classList.toggle('active');
+                // Sync desktop button
+                const desktopBtn = document.getElementById('accidents-btn');
+                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+            });
+        }
+        const mobileFacilitiesBtn = document.getElementById('mobile-facilities-btn');
+        if (mobileFacilitiesBtn) {
+            mobileFacilitiesBtn.addEventListener('click', function () {
+                toggleFacilities();
+                this.classList.toggle('active');
+                // Sync desktop button
+                const desktopBtn = document.getElementById('facilities-btn');
+                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+            });
+        }
+        const mobileMetroBtn = document.getElementById('mobile-metro-btn');
+        if (mobileMetroBtn) {
+            mobileMetroBtn.addEventListener('click', function () {
+                toggleMetro();
+                this.classList.toggle('active');
+                // Sync desktop button
+                const desktopBtn = document.getElementById('metro-btn');
+                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+            });
+        }
+        const mobileBmtcBtn = document.getElementById('mobile-bmtc-btn');
+        if (mobileBmtcBtn) {
+            mobileBmtcBtn.addEventListener('click', function () {
+                toggleBmtc();
+                this.classList.toggle('active');
+                // Sync desktop button
+                const desktopBtn = document.getElementById('bmtc-btn');
+                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+            });
+        }
 
         // Show user location on load
         showUserLocation();
@@ -558,15 +636,10 @@ async function fetchTrafficIncidents(bbox) {
         // Default to Bengaluru bounds if no bbox provided
         const bounds = bbox || '77.300000,12.800000,77.800000,13.200000';
 
-        // Parse bounds for TomTom v4 API format: minLon,minLat,maxLon,maxLat
-        const [minLon, minLat, maxLon, maxLat] = bounds.split(',').map(c => parseFloat(c).toFixed(6));
-
-        // Use TomTom Traffic Incidents v4 API (tile-based, works reliably)
-        // Format: /traffic/services/4/incidentDetails/s3/{minLon},{minLat},{maxLon},{maxLat}/{zoom}/-1/{format}
-        const url = `https://api.tomtom.com/traffic/services/4/incidentDetails/s3/${minLon},${minLat},${maxLon},${maxLat}/11/-1/json?key=${TOMTOM_API_KEY}&expandCluster=true&projection=EPSG4326`;
+        // Use secure proxy endpoint (API key is on server-side)
+        const url = `/api/tomtom-traffic?bbox=${encodeURIComponent(bounds)}`;
 
         console.log(`[Traffic Debug] BBox: ${bounds}`);
-        if (!TOMTOM_API_KEY) console.error('[Traffic Error] TOMTOM_API_KEY is missing!');
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -576,30 +649,39 @@ async function fetchTrafficIncidents(bbox) {
 
         const data = await response.json();
 
-        // v4 API returns data in tm.poi array
-        if (!data.tm || !data.tm.poi) {
+        // Handle both production (proxy returns { incidents: [...] }) and 
+        // dev (Vite proxy returns raw TomTom { tm: { poi: [...] } })
+        let incidents = [];
+
+        if (data.incidents) {
+            // Production: Cloudflare Function response
+            incidents = data.incidents;
+        } else if (data.tm && data.tm.poi) {
+            // Dev: Raw TomTom response via Vite proxy
+            incidents = data.tm.poi
+                .filter(inc => inc.p)
+                .map(inc => ({
+                    id: inc.id || `traffic-${Math.random()}`,
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [inc.p.x, inc.p.y]
+                    },
+                    point: { lat: inc.p.y, lon: inc.p.x },
+                    severity: inc.ty === 1 ? 'Major' : 'Moderate',
+                    delay: inc.dl || 0,
+                    description: inc.d || 'Traffic Incident',
+                    from: inc.f || '',
+                    to: inc.t || ''
+                }));
+        }
+
+        if (incidents.length === 0) {
             console.log('[Traffic] No incidents found in area');
             return [];
         }
 
-        const incidents = data.tm.poi;
         console.log(`[Traffic] Fetched ${incidents.length} traffic incidents.`);
-
-        return incidents
-            .filter(inc => inc.p) // Ensure position exists
-            .map(inc => ({
-                id: inc.id || `traffic-${Math.random()}`,
-                geometry: {
-                    type: 'Point',
-                    coordinates: [inc.p.x, inc.p.y]
-                },
-                point: { lat: inc.p.y, lon: inc.p.x },
-                severity: inc.ty === 1 ? 'Major' : 'Moderate', // ty: incident type
-                delay: inc.dl || 0, // delay in seconds
-                description: inc.d || 'Traffic Incident',
-                from: inc.f || '',
-                to: inc.t || ''
-            }));
+        return incidents;
     } catch (error) {
         console.error('Error fetching traffic incidents:', error);
         return [];
@@ -2405,6 +2487,21 @@ function initMobileBottomSheet() {
     });
 
     // ========================================
+    // Map click to minimize bottom sheet
+    // ========================================
+    if (map) {
+        map.on('click', () => {
+            // Only minimize if sheet is expanded or half
+            if (sheet.classList.contains('expanded') || sheet.classList.contains('half')) {
+                const sheetHeight = sheet.offsetHeight;
+                const peekY = sheetHeight - SNAP_PEEK;
+                sheet.style.transform = `translateY(${peekY}px)`;
+                updateSheetClass(peekY);
+            }
+        });
+    }
+
+    // ========================================
     // Sync Mobile Inputs with Desktop
     // ========================================
     const mobileStartInput = document.getElementById('mobile-start-location');
@@ -2748,22 +2845,22 @@ function setupPersonAutocomplete(input, personId) {
 
 async function fetchGroupSuggestions(query) {
     try {
-        const TOMTOM_API_KEY = 'sdzQqXJ0hQKanaHi0jmyNwqcuBokTRwY';
-        const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent(query)}.json?` +
-            `key=${TOMTOM_API_KEY}` +
+        // Use secure proxy endpoint (API key is on server-side)
+        const url = `/api/tomtom-search?` +
+            `query=${encodeURIComponent(query)}` +
             `&limit=5` +
-            `&countrySet=IN` +
             `&lat=12.9716` +
-            `&lon=77.5946` +
-            `&radius=50000`;
+            `&lon=77.5946`;
 
         const response = await fetch(url);
         const data = await response.json();
 
-        return (data.results || []).map(result => ({
-            display_name: result.address?.freeformAddress || result.poi?.name || 'Unknown',
-            lat: result.position.lat,
-            lon: result.position.lon
+        // Handle both proxy-transformed and raw TomTom response formats
+        const results = data.results || [];
+        return results.map(result => ({
+            display_name: result.display_name || result.address?.freeformAddress || result.poi?.name || 'Unknown',
+            lat: result.lat || result.position?.lat,
+            lon: result.lon || result.position?.lon
         }));
     } catch (error) {
         console.error('TomTom search error:', error);

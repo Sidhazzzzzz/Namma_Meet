@@ -88,47 +88,37 @@ export function calculateVenueScore(venue, userLocations, centroid) {
     };
 }
 
-// Search for venues using TomTom API
+// Search for venues using secure proxy endpoint
 export async function searchVenues(centroid, category, userLocations) {
-    const TOMTOM_API_KEY = 'sdzQqXJ0hQKanaHi0jmyNwqcuBokTRwY';
-
     try {
-        // Build search query based on category
-        const categoryMap = {
-            'cafe': 'cafe',
-            'restaurant': 'restaurant',
-            'park': 'park',
-            'mall': 'shopping center',
-            'bar': 'bar'
-        };
-
-        const searchTerm = categoryMap[category] || category;
-
-        const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent(searchTerm)}.json?` +
-            `key=${TOMTOM_API_KEY}` +
+        // Use secure proxy endpoint (API key is on server-side)
+        const url = `/api/tomtom-venue?` +
+            `category=${encodeURIComponent(category)}` +
             `&lat=${centroid.lat}` +
             `&lon=${centroid.lon}` +
-            `&radius=5000` + // 5km radius
-            `&limit=10` +
-            `&countrySet=IN`;
+            `&radius=5000` +
+            `&limit=10`;
 
         const response = await fetch(url);
         const data = await response.json();
 
-        if (!data.results || data.results.length === 0) {
-            // Fallback to Nominatim if TomTom returns nothing
+        // Handle both proxy-transformed and raw TomTom response formats
+        const results = data.results || [];
+
+        if (results.length === 0) {
+            // Fallback to Nominatim if proxy returns nothing
             return await searchVenuesNominatim(centroid, category, userLocations);
         }
 
         // Process and score venues
-        const venues = data.results.map(result => {
+        const venues = results.map(result => {
             const venue = {
-                name: result.poi?.name || result.address?.freeformAddress || 'Unknown Venue',
-                address: result.address?.freeformAddress || '',
-                lat: result.position.lat,
-                lon: result.position.lon,
+                name: result.name || result.poi?.name || result.address?.freeformAddress || 'Unknown Venue',
+                address: result.address || result.address?.freeformAddress || '',
+                lat: result.lat || result.position?.lat,
+                lon: result.lon || result.position?.lon,
                 rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1), // Mock rating
-                category: result.poi?.categories?.[0] || category
+                category: result.category || result.poi?.categories?.[0] || category
             };
 
             venue.scores = calculateVenueScore(venue, userLocations, centroid);
@@ -141,7 +131,7 @@ export async function searchVenues(centroid, category, userLocations) {
         return venues.slice(0, 5); // Return top 5
 
     } catch (error) {
-        console.error('TomTom venue search error:', error);
+        console.error('Venue search error:', error);
         return await searchVenuesNominatim(centroid, category, userLocations);
     }
 }
@@ -187,25 +177,36 @@ async function searchVenuesNominatim(centroid, category, userLocations) {
     }
 }
 
-// Geocode a location string to coordinates
+// Geocode a location string to coordinates using secure proxy
 export async function geocodeLocation(locationString) {
-    const TOMTOM_API_KEY = 'sdzQqXJ0hQKanaHi0jmyNwqcuBokTRwY';
-
     try {
-        const query = `${locationString}, Bengaluru`;
-        const url = `https://api.tomtom.com/search/2/search/${encodeURIComponent(query)}.json?` +
-            `key=${TOMTOM_API_KEY}` +
-            `&limit=1` +
-            `&countrySet=IN`;
+        // Use secure proxy endpoint (API key is on server-side)
+        const url = `/api/tomtom-geocode?query=${encodeURIComponent(locationString)}`;
 
         const response = await fetch(url);
+
+        if (!response.ok) {
+            // Fallback to Nominatim
+            return await geocodeLocationNominatim(locationString);
+        }
+
         const data = await response.json();
 
-        if (data.results && data.results.length > 0) {
+        // Handle both proxy-transformed and raw TomTom response formats
+        // Proxy returns {lat, lon, address} directly
+        // Raw TomTom returns {results: [{position: {lat, lon}, address: {...}}]}
+        if (data.lat && data.lon) {
+            return {
+                lat: data.lat,
+                lon: data.lon,
+                name: locationString,
+                address: data.address || locationString
+            };
+        } else if (data.results && data.results.length > 0) {
             const result = data.results[0];
             return {
-                lat: result.position.lat,
-                lon: result.position.lon,
+                lat: result.position?.lat,
+                lon: result.position?.lon,
                 name: locationString,
                 address: result.address?.freeformAddress || locationString
             };
@@ -215,7 +216,7 @@ export async function geocodeLocation(locationString) {
         return await geocodeLocationNominatim(locationString);
 
     } catch (error) {
-        console.error('TomTom geocode error:', error);
+        console.error('Geocode error:', error);
         return await geocodeLocationNominatim(locationString);
     }
 }
@@ -259,7 +260,8 @@ export function generateDirectionsUrl(fromLat, fromLon, toLat, toLon) {
 // Calculate route using OSRM (for drawing on map)
 export async function calculateRoute(from, to) {
     try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
+        // Use proxy endpoint to avoid CORS issues and improve consistency
+        const url = `/api/osrm/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
 
         const response = await fetch(url);
         const data = await response.json();

@@ -27,13 +27,7 @@
         <aside class="floating-sidebar" id="floating-sidebar">
             <!-- Mode Toggle -->
             <div class="mode-toggle">
-                <button class="mode-btn active" data-mode="solo" id="solo-mode-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    Safe Route
-                </button>
-                <button class="mode-btn" data-mode="group" id="group-mode-btn">
+                <button class="mode-btn active" data-mode="group" id="group-mode-btn">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="9" cy="7" r="4" />
                         <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
@@ -42,10 +36,16 @@
                     </svg>
                     Group Meet
                 </button>
+                <button class="mode-btn" data-mode="solo" id="solo-mode-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    Safe Route
+                </button>
             </div>
 
-            <!-- Solo Route Mode Content -->
-            <div class="mode-content" id="solo-content">
+            <!-- Solo Route Mode Content (hidden by default) -->
+            <div class="mode-content hidden" id="solo-content">
                 <div class="input-section">
                     <div class="premium-input-group">
                         <div class="input-icon start">
@@ -133,8 +133,8 @@
                 </div>
             </div>
 
-            <!-- Group Meet Mode Content -->
-            <div class="mode-content hidden" id="group-content">
+            <!-- Group Meet Mode Content (visible by default) -->
+            <div class="mode-content" id="group-content">
                 <div class="section-intro">
                     <p>Find the perfect meeting spot for everyone</p>
                 </div>
@@ -219,14 +219,7 @@
             <div class="sheet-content" id="sheet-content">
                 <!-- Mode Toggle -->
                 <div class="mode-toggle mobile-mode-toggle">
-                    <button class="mode-btn active" data-mode="solo" id="mobile-solo-mode-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                        </svg>
-                        Safe Route
-                    </button>
-                    <button class="mode-btn" data-mode="group" id="mobile-group-mode-btn">
+                    <button class="mode-btn active" data-mode="group" id="mobile-group-mode-btn">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <circle cx="9" cy="7" r="4" />
@@ -236,10 +229,17 @@
                         </svg>
                         Group Meet
                     </button>
+                    <button class="mode-btn" data-mode="solo" id="mobile-solo-mode-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        Safe Route
+                    </button>
                 </div>
 
-                <!-- Solo Route Mode Content (Mobile) -->
-                <div class="mode-content" id="mobile-solo-content">
+                <!-- Solo Route Mode Content (Mobile) - hidden by default -->
+                <div class="mode-content hidden" id="mobile-solo-content">
                     <div class="input-section">
                         <div class="premium-input-group">
                             <div class="input-icon start">
@@ -303,6 +303,14 @@
                             </svg>
                             Alerts
                         </button>
+                        <button class="action-chip" id="mobile-facilities-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                <path d="M9 12h6M12 9v6" />
+                            </svg>
+                            Safety
+                        </button>
                     </div>
 
                     <!-- Routes List -->
@@ -314,8 +322,8 @@
                     </div>
                 </div>
 
-                <!-- Group Meet Mode Content (Mobile) -->
-                <div class="mode-content hidden" id="mobile-group-content">
+                <!-- Group Meet Mode Content (Mobile) - visible by default -->
+                <div class="mode-content" id="mobile-group-content">
                     <div class="section-intro">
                         <p>Find the perfect meeting spot for everyone</p>
                     </div>

@@ -164,6 +164,8 @@ body {
 .input-section {
     display: flex;
     flex-direction: column;
+    overflow: visible;
+    /* Allow autocomplete dropdown to overflow */
 }
 
 .premium-input-group {
@@ -175,6 +177,8 @@ body {
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     transition: var(--transition);
+    position: relative;
+    /* Required for autocomplete dropdown positioning */
 }
 
 .premium-input-group:hover {
@@ -333,9 +337,11 @@ body {
 }
 
 .action-chip.active {
-    background: rgba(59, 130, 246, 0.15);
-    border-color: rgba(59, 130, 246, 0.4);
-    color: var(--accent-blue);
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.6);
+    color: #60a5fa;
+    font-weight: 600;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
 }
 
 /* ========================================
@@ -930,7 +936,7 @@ body {
         box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
 
         /* Initial collapsed position - peek state */
-        height: 90vh;
+        height: 80vh;
         transform: translateY(calc(100% - 140px));
         transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
         will-change: transform;
