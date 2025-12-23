@@ -231,14 +231,14 @@ function showSuggestions(suggestions, inputElement) {
             list.remove(); // Remove dropdown entirely from DOM
 
             // Sync mobile inputs to main inputs
-            if (inputElement.id === 'mobile-start-input') {
+            if (inputElement.id === 'mobile-start-location') {
                 const mainInput = document.getElementById('start-location');
                 if (mainInput) {
                     mainInput.value = item.display_name;
                     mainInput.dataset.lat = item.lat;
                     mainInput.dataset.lon = item.lon;
                 }
-            } else if (inputElement.id === 'mobile-end-input') {
+            } else if (inputElement.id === 'mobile-end-location') {
                 const mainInput = document.getElementById('end-location');
                 if (mainInput) {
                     mainInput.value = item.display_name;
@@ -1715,6 +1715,15 @@ async function findSafeRoutes() {
 
         console.log('Start:', startCoords);
         console.log('End:', endCoords);
+
+        // Validate coordinates are valid numbers
+        if (isNaN(startCoords.lat) || isNaN(startCoords.lon)) {
+            throw new Error('Could not determine starting location. Please select a location from the suggestions.');
+        }
+        if (isNaN(endCoords.lat) || isNaN(endCoords.lon)) {
+            throw new Error('Could not determine destination. Please select a location from the suggestions.');
+        }
+
 
         // Fetch weather data in parallel
         const [startWeather, endWeather] = await Promise.all([
