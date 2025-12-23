@@ -179,12 +179,14 @@ async function fetchSuggestions(query, retries = 1) {
         const data = await response.json();
         console.log('TomTom raw response:', data);
 
-        // Handle raw TomTom response format
+        // Handle both raw TomTom response (local dev) and proxy-transformed response (production)
+        // Raw TomTom: { position: { lat, lon }, address: { freeformAddress } }
+        // Proxy: { lat, lon, display_name }
         const results = data.results || [];
         const mapped = results.map(result => ({
-            display_name: result.address?.freeformAddress || result.poi?.name || 'Unknown',
-            lat: result.position?.lat,
-            lon: result.position?.lon
+            display_name: result.display_name || result.address?.freeformAddress || result.poi?.name || 'Unknown',
+            lat: result.lat ?? result.position?.lat,
+            lon: result.lon ?? result.position?.lon
         }));
         console.log('Mapped suggestions:', mapped);
         return mapped;
