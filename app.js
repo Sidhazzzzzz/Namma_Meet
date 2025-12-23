@@ -577,8 +577,23 @@ function initializeMap() {
 }
 
 function showUserLocation() {
+    // Try to load previously stored location from localStorage
+    const storedLocation = localStorage.getItem('userLastLocation');
+    let lastKnownLocation = null;
+
+    if (storedLocation) {
+        try {
+            lastKnownLocation = JSON.parse(storedLocation);
+            console.log('Found stored location:', lastKnownLocation);
+        } catch (e) {
+            console.warn('Could not parse stored location');
+        }
+    }
+
     if (!navigator.geolocation) {
         console.warn('Geolocation is not supported by your browser');
+        // Use stored location or default to Bengaluru
+        useLocation(lastKnownLocation || { lat: 12.9716, lon: 77.5946 }, false);
         return;
     }
 
@@ -589,38 +604,68 @@ function showUserLocation() {
             const { latitude, longitude, accuracy } = position.coords;
             console.log(`Location found: ${latitude}, ${longitude} (Accuracy: ${accuracy}m)`);
 
-            // Update search location bias for autocomplete
-            updateUserLocationForSearch(latitude, longitude);
+            // Store location in localStorage for future use
+            const locationData = { lat: latitude, lon: longitude };
+            localStorage.setItem('userLastLocation', JSON.stringify(locationData));
 
-            // Create the HTML element for the marker
-            const el = document.createElement('div');
-            el.className = 'user-location-container';
-            el.innerHTML = `
-                <div class="user-location-pulse"></div>
-                <div class="user-location-dot"></div>
-            `;
-
-            // Add marker to map
-            new maplibregl.Marker({ element: el })
-                .setLngLat([longitude, latitude])
-                .addTo(map);
-
-            // Fly to location
-            map.flyTo({
-                center: [longitude, latitude],
-                zoom: 14,
-                essential: true
-            });
+            useLocation(locationData, true);
         },
         (error) => {
-            console.error('Error getting user location:', error.message, error.code);
+            // Handle GPS error gracefully - no exception, just log and use fallback
+            console.warn('GPS unavailable:', error.message);
+
+            if (lastKnownLocation) {
+                console.log('Using last known location');
+                useLocation(lastKnownLocation, false);
+            } else {
+                console.log('No stored location, using Bengaluru default');
+                // Use Bengaluru as default
+                useLocation({ lat: 12.9716, lon: 77.5946 }, false);
+            }
         },
         {
             enableHighAccuracy: true,
-            timeout: 30000,
-            maximumAge: 10000
+            timeout: 10000,  // Reduced timeout to fail faster
+            maximumAge: 60000  // Accept cached location up to 1 minute old
         }
     );
+}
+
+// Helper function to show location on map
+function useLocation(location, isLive) {
+    const { lat, lon } = location;
+
+    // Update search location bias for autocomplete
+    updateUserLocationForSearch(lat, lon);
+
+    // Create the HTML element for the marker
+    const el = document.createElement('div');
+    el.className = 'user-location-container';
+
+    if (isLive) {
+        // Live GPS location - show pulsing marker
+        el.innerHTML = `
+            <div class="user-location-pulse"></div>
+            <div class="user-location-dot"></div>
+        `;
+    } else {
+        // Stored/default location - show static marker with different style
+        el.innerHTML = `
+            <div class="user-location-dot" style="opacity: 0.7;"></div>
+        `;
+    }
+
+    // Add marker to map
+    new maplibregl.Marker({ element: el })
+        .setLngLat([lon, lat])
+        .addTo(map);
+
+    // Fly to location
+    map.flyTo({
+        center: [lon, lat],
+        zoom: 14,
+        essential: true
+    });
 }
 
 // ========================================
