@@ -2663,7 +2663,8 @@ function initMobileBottomSheet() {
         sheet.classList.add('dragging');
     }
 
-    // Pointer/Touch move
+    // Pointer/Touch move - INP optimized with RAF
+    let dragRafId = null;
     function onDragMove(e) {
         if (!isDragging) return;
 
@@ -2685,21 +2686,35 @@ function initMobileBottomSheet() {
         lastY = clientY;
         lastTime = now;
 
-        sheet.style.transform = `translateY(${newTranslateY}px)`;
+        // Use RAF to batch transform updates for better INP
+        if (dragRafId) cancelAnimationFrame(dragRafId);
+        dragRafId = requestAnimationFrame(() => {
+            sheet.style.transform = `translateY(${newTranslateY}px)`;
+        });
     }
 
-    // Pointer/Touch end
+    // Pointer/Touch end - INP optimized
     function onDragEnd() {
         if (!isDragging) return;
         isDragging = false;
+
+        // Cancel any pending drag RAF
+        if (dragRafId) {
+            cancelAnimationFrame(dragRafId);
+            dragRafId = null;
+        }
 
         sheet.classList.remove('dragging');
 
         const currentTranslateY = getTranslateY();
         const snapPosition = getSnapPosition(currentTranslateY, velocity);
 
-        sheet.style.transform = `translateY(${snapPosition}px)`;
-        updateSheetClass(snapPosition);
+        // Use RAF for snap animation to improve INP
+        requestAnimationFrame(() => {
+            sheet.style.transform = `translateY(${snapPosition}px)`;
+            // Defer class update to after transform
+            setTimeout(() => updateSheetClass(snapPosition), 0);
+        });
     }
 
     // Add event listeners for drag
@@ -2851,22 +2866,27 @@ function initMobileBottomSheet() {
     const desktopGroupBtn = document.getElementById('group-mode-btn');
 
     function setMobileMode(mode) {
+        // INP Optimization: Paint class changes immediately, defer heavy work
         if (mode === 'solo') {
             mobileSoloBtn?.classList.add('active');
             mobileGroupBtn?.classList.remove('active');
             mobileSoloContent?.classList.remove('hidden');
             mobileGroupContent?.classList.add('hidden');
-            // Sync desktop
-            desktopSoloBtn?.click();
+            // Defer desktop sync to next frame for better INP
+            requestAnimationFrame(() => {
+                desktopSoloBtn?.click();
+            });
         } else {
             mobileSoloBtn?.classList.remove('active');
             mobileGroupBtn?.classList.add('active');
             mobileSoloContent?.classList.add('hidden');
             mobileGroupContent?.classList.remove('hidden');
-            // Sync desktop
-            desktopGroupBtn?.click();
-            // Initialize mobile group inputs
-            initMobileGroupMeet();
+            // Defer heavy work to next frame for better INP
+            requestAnimationFrame(() => {
+                desktopGroupBtn?.click();
+                // Further defer initMobileGroupMeet to after desktop sync
+                setTimeout(() => initMobileGroupMeet(), 0);
+            });
         }
     }
 
@@ -2930,7 +2950,8 @@ function initMobileGroupMeet() {
         mobileLocationsList.appendChild(row);
 
         const input = row.querySelector('.person-input');
-        setupPersonAutocomplete(input, person.id);
+        // INP Optimization: Defer autocomplete setup to next idle period
+        setTimeout(() => setupPersonAutocomplete(input, person.id), 0);
 
         const removeBtn = row.querySelector('.remove-person-btn');
         if (removeBtn && groupLocations.length > 2) {
@@ -3054,9 +3075,9 @@ function renderPersonInputs() {
 
         container.appendChild(row);
 
-        // Setup autocomplete for person input
+        // Setup autocomplete for person input - deferred for better INP
         const input = row.querySelector('.person-input');
-        setupPersonAutocomplete(input, person.id);
+        setTimeout(() => setupPersonAutocomplete(input, person.id), 0);
 
         // Remove person handler
         const removeBtn = row.querySelector('.remove-person-btn');
