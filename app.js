@@ -127,23 +127,23 @@ function getMapPadding() {
 
     if (isMobile) {
         // Mobile: Account for bottom sheet state
-        const bottomSheet = document.getElementById('mobile-bottom-sheet');
+        const bottomSheet = document.getElementById('mobile-sheet');
         const topBar = document.querySelector('.mobile-top-bar');
 
         let bottomPadding = 100; // Default minimum
         let topPadding = 70; // Default for top bar
 
         if (bottomSheet) {
-            // Check bottom sheet state
+            // Check bottom sheet state - matches new CSS values
             if (bottomSheet.classList.contains('expanded')) {
-                // Fully expanded - most of screen is covered
-                bottomPadding = Math.min(window.innerHeight * 0.85, 600);
+                // Fully expanded - 70% of screen covered
+                bottomPadding = Math.min(window.innerHeight * 0.70, 500);
             } else if (bottomSheet.classList.contains('half')) {
-                // Half expanded
-                bottomPadding = Math.min(window.innerHeight * 0.5, 350);
+                // Half expanded - ~35% of screen
+                bottomPadding = Math.min(window.innerHeight * 0.35, 280);
             } else {
-                // Peek/minimized state - just the handle visible
-                bottomPadding = 100;
+                // Peek/minimized state - 10% visible
+                bottomPadding = Math.max(window.innerHeight * 0.10, 80);
             }
         }
 
@@ -2587,7 +2587,8 @@ function initMobileBottomSheet() {
     let velocity = 0;
 
     // Snap positions (percentage of sheet height visible)
-    const SNAP_PEEK = 140;      // px from bottom
+    // SNAP_PEEK: 10% of viewport (10vh) - will be calculated dynamically
+    const SNAP_PEEK_VH = 10;     // percentage of viewport height
     const SNAP_HALF = 50;        // percentage
     const SNAP_EXPANDED = 0;     // percentage (fully visible)
 
@@ -2603,6 +2604,7 @@ function initMobileBottomSheet() {
     function getSnapPosition(currentY, vel) {
         const sheetHeight = sheet.offsetHeight;
         const vh = window.innerHeight;
+        const SNAP_PEEK = vh * (SNAP_PEEK_VH / 100); // 10% of viewport
 
         const peekY = sheetHeight - SNAP_PEEK;
         const halfY = sheetHeight * (SNAP_HALF / 100);
@@ -2635,6 +2637,8 @@ function initMobileBottomSheet() {
     // Update sheet class based on position
     function updateSheetClass(translateY) {
         const sheetHeight = sheet.offsetHeight;
+        const vh = window.innerHeight;
+        const SNAP_PEEK = vh * (SNAP_PEEK_VH / 100); // 10% of viewport
         const peekY = sheetHeight - SNAP_PEEK;
         const halfY = sheetHeight * (SNAP_HALF / 100);
 
@@ -2674,6 +2678,8 @@ function initMobileBottomSheet() {
 
         // Clamp to valid range
         const sheetHeight = sheet.offsetHeight;
+        const vh = window.innerHeight;
+        const SNAP_PEEK = vh * (SNAP_PEEK_VH / 100); // 10% of viewport
         const maxTranslateY = sheetHeight - SNAP_PEEK;
         newTranslateY = Math.max(0, Math.min(newTranslateY, maxTranslateY));
 
@@ -2737,10 +2743,11 @@ function initMobileBottomSheet() {
         }
     }, { passive: true });
 
-    // Initialize in peek state
+    // Initialize in half state (50% visible)
     const sheetHeight = sheet.offsetHeight;
-    sheet.style.transform = `translateY(${sheetHeight - SNAP_PEEK}px)`;
-    sheet.classList.add('peek');
+    const halfY = sheetHeight * (SNAP_HALF / 100);
+    sheet.style.transform = `translateY(${halfY}px)`;
+    sheet.classList.add('half');
 
     // Handle tap on handle to toggle states
     let tapStartTime = 0;
@@ -2759,6 +2766,8 @@ function initMobileBottomSheet() {
         if (tapDuration < 200 && tapDistance < 10) {
             const sheetHeight = sheet.offsetHeight;
             const currentY = getTranslateY();
+            const vh = window.innerHeight;
+            const SNAP_PEEK = vh * (SNAP_PEEK_VH / 100); // 10% of viewport
             const peekY = sheetHeight - SNAP_PEEK;
             const halfY = sheetHeight * (SNAP_HALF / 100);
 
@@ -2785,6 +2794,8 @@ function initMobileBottomSheet() {
             // Only minimize if sheet is expanded or half
             if (sheet.classList.contains('expanded') || sheet.classList.contains('half')) {
                 const sheetHeight = sheet.offsetHeight;
+                const vh = window.innerHeight;
+                const SNAP_PEEK = vh * (SNAP_PEEK_VH / 100); // 10% of viewport
                 const peekY = sheetHeight - SNAP_PEEK;
                 sheet.style.transform = `translateY(${peekY}px)`;
                 updateSheetClass(peekY);
@@ -2844,12 +2855,14 @@ function initMobileBottomSheet() {
             // Trigger route finding
             findSafeRoutes();
 
-            // Expand sheet to show results
+            // Minimize sheet to peek state to show the map
             setTimeout(() => {
-                const halfY = sheet.offsetHeight * (SNAP_HALF / 100);
-                sheet.style.transform = `translateY(${halfY}px)`;
-                updateSheetClass(halfY);
-            }, 500);
+                const vh = window.innerHeight;
+                const peekHeight = vh * (SNAP_PEEK_VH / 100); // 10% of viewport
+                const peekY = sheet.offsetHeight - peekHeight;
+                sheet.style.transform = `translateY(${peekY}px)`;
+                updateSheetClass(peekY);
+            }, 300);
         });
     }
 
@@ -2993,7 +3006,28 @@ function initMobileGroupMeet() {
 
     // Find meeting spot button
     if (mobileFindMeetingBtn) {
-        mobileFindMeetingBtn.onclick = findMeetingSpot;
+        mobileFindMeetingBtn.onclick = () => {
+            console.log('Find Meeting Spot button clicked');
+
+            // Immediately start minimizing the sheet
+            const sheet = document.getElementById('mobile-sheet');
+            if (sheet) {
+                const vh = window.innerHeight;
+                const peekHeight = vh * 0.10; // 10% of viewport
+                const peekY = sheet.offsetHeight - peekHeight;
+
+                // Minimize after a short delay to allow UI to respond
+                setTimeout(() => {
+                    console.log('Minimizing sheet to peek');
+                    sheet.style.transform = `translateY(${peekY}px)`;
+                    sheet.classList.remove('expanded', 'half');
+                    sheet.classList.add('peek');
+                }, 500);
+            }
+
+            // Call the find meeting spot function
+            findMeetingSpot();
+        };
     }
 }
 
@@ -3278,6 +3312,22 @@ async function findMeetingSpot() {
 
         // Show markers and routes on map
         await showGroupOnMap(locationsWithCoords, venues[0]);
+
+        // Minimize mobile bottom sheet to peek state to show the map
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            setTimeout(() => {
+                const sheet = document.getElementById('mobile-sheet');
+                if (sheet) {
+                    const vh = window.innerHeight;
+                    const peekHeight = vh * 0.10; // 10% of viewport
+                    const peekY = sheet.offsetHeight - peekHeight;
+                    sheet.style.transform = `translateY(${peekY}px)`;
+                    sheet.classList.remove('expanded', 'half');
+                    sheet.classList.add('peek');
+                }
+            }, 300);
+        }
 
     } catch (error) {
         console.error('Error finding meeting spot:', error);

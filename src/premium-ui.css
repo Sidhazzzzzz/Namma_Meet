@@ -999,9 +999,9 @@ body {
         border-bottom: none;
         box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
 
-        /* Initial collapsed position - peek state */
-        height: 80vh;
-        transform: translateY(calc(100% - 140px));
+        /* Initial position - half state (50% visible) */
+        height: 70vh;
+        transform: translateY(50%);
         transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
         will-change: transform;
         touch-action: none;
@@ -1009,7 +1009,7 @@ body {
 
     /* Snap positions */
     .mobile-bottom-sheet.peek {
-        transform: translateY(calc(100% - 140px));
+        transform: translateY(calc(100% - 10vh));
     }
 
     .mobile-bottom-sheet.half {
