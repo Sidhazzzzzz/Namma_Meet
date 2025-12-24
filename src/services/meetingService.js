@@ -114,7 +114,8 @@ export async function searchVenues(centroid, category, userLocations) {
         const venues = results.map(result => {
             const venue = {
                 name: result.name || result.poi?.name || result.address?.freeformAddress || 'Unknown Venue',
-                address: result.address?.freeformAddress || '',
+                // Handle both proxy response (address is string) and raw TomTom (address.freeformAddress)
+                address: (typeof result.address === 'string' ? result.address : result.address?.freeformAddress) || '',
                 lat: result.lat || result.position?.lat,
                 lon: result.lon || result.position?.lon,
                 rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1), // Mock rating
