@@ -118,6 +118,71 @@ function updateUserLocationForSearch(lat, lon) {
     console.log('Search location bias updated to:', userLocation);
 }
 
+// ========================================
+// Dynamic Map Padding Calculator
+// ========================================
+// Calculates appropriate map padding based on current UI state
+function getMapPadding() {
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+        // Mobile: Account for bottom sheet state
+        const bottomSheet = document.getElementById('mobile-bottom-sheet');
+        const topBar = document.querySelector('.mobile-top-bar');
+
+        let bottomPadding = 100; // Default minimum
+        let topPadding = 70; // Default for top bar
+
+        if (bottomSheet) {
+            // Check bottom sheet state
+            if (bottomSheet.classList.contains('expanded')) {
+                // Fully expanded - most of screen is covered
+                bottomPadding = Math.min(window.innerHeight * 0.85, 600);
+            } else if (bottomSheet.classList.contains('half')) {
+                // Half expanded
+                bottomPadding = Math.min(window.innerHeight * 0.5, 350);
+            } else {
+                // Peek/minimized state - just the handle visible
+                bottomPadding = 100;
+            }
+        }
+
+        if (topBar) {
+            topPadding = topBar.offsetHeight + 15;
+        }
+
+        return {
+            top: topPadding,
+            bottom: bottomPadding,
+            left: 25,
+            right: 25
+        };
+    } else {
+        // Desktop: Account for sidebar state
+        const sidebar = document.querySelector('.sidebar');
+
+        let leftPadding = 80; // Default when collapsed
+
+        if (sidebar) {
+            // Check if sidebar is expanded (not minimized)
+            if (!sidebar.classList.contains('minimized')) {
+                // Sidebar is expanded - use its width
+                leftPadding = sidebar.offsetWidth + 30 || 430;
+            } else {
+                // Sidebar is minimized/collapsed
+                leftPadding = 80;
+            }
+        }
+
+        return {
+            top: 80,
+            bottom: 80,
+            left: leftPadding,
+            right: 50
+        };
+    }
+}
+
 /**
  * Fetch with timeout helper
  * @param {string} url - URL to fetch
@@ -307,7 +372,7 @@ function showSuggestions(suggestions, inputElement) {
                         .extend([endLon, endLat]);
 
                     map.fitBounds(bounds, {
-                        padding: { top: 80, bottom: 80, left: 450, right: 80 },
+                        padding: getMapPadding(),
                         duration: 1500
                     });
                 } else {
@@ -1673,7 +1738,7 @@ function renderRoutesOnMap(routes) {
 
                 if (map && !bounds.isEmpty()) {
                     map.fitBounds(bounds, {
-                        padding: { top: 100, bottom: 110, left: 40, right: 40 },
+                        padding: getMapPadding(),
                         maxZoom: 14,
                         duration: 1500
                     });
@@ -1689,14 +1754,14 @@ function renderRoutesOnMap(routes) {
             map.flyTo({
                 center: [77.5946, 12.9716],
                 zoom: 9,
-                padding: { left: 450, right: 50 },
+                padding: getMapPadding(),
                 duration: 2000,
                 essential: true
             });
 
             setTimeout(() => {
                 map.fitBounds(bounds, {
-                    padding: { top: 100, bottom: 20, left: 430, right: 20 },
+                    padding: getMapPadding(),
                     duration: 2000
                 });
             }, 2000);
@@ -2221,12 +2286,7 @@ function initMobilePanel() {
         console.log('Refit:', { topPadding, bottomPadding, panelHeight, topBarHeight });
 
         map.fitBounds(bounds, {
-            padding: {
-                top: topPadding,
-                bottom: bottomPadding,
-                left: 25,
-                right: 25
-            },
+            padding: getMapPadding(),
             maxZoom: 15,
             duration: 500
         });
@@ -3373,7 +3433,7 @@ async function showGroupOnMap(userLocations, venue) {
     bounds.extend([venue.lon, venue.lat]);
 
     map.fitBounds(bounds, {
-        padding: { top: 80, bottom: 80, left: 100, right: 420 },
+        padding: getMapPadding(),
         duration: 1500
     });
 }
