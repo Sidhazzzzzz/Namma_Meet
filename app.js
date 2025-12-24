@@ -413,29 +413,40 @@ function renderWeatherInfo(startWeather, endWeather) {
     const startCard = document.getElementById('start-weather');
     const endCard = document.getElementById('end-weather');
 
+    // Mobile elements
+    const mobileContainer = document.getElementById('mobile-weather-container');
+    const mobileStartCard = document.getElementById('mobile-start-weather');
+    const mobileEndCard = document.getElementById('mobile-end-weather');
+
     if (!startWeather && !endWeather) {
         container.classList.add('hidden');
+        if (mobileContainer) mobileContainer.classList.add('hidden');
         return;
     }
 
     container.classList.remove('hidden');
+    if (mobileContainer) mobileContainer.classList.remove('hidden');
 
     if (startWeather) {
-        startCard.innerHTML = `
+        const startHtml = `
             <div class="weather-location">Start</div>
-            <img src="https://openweathermap.org/img/wn/${startWeather.weather[0].icon}.png" alt="Weather icon" class="weather-icon">
+            <img src="https://openweathermap.org/img/wn/${startWeather.weather[0].icon}@2x.png" alt="Weather icon" class="weather-icon">
             <div class="weather-temp">${startWeather.main.temp.toFixed(1)}°C</div>
             <div class="weather-desc">${startWeather.weather[0].description}</div>
         `;
+        startCard.innerHTML = startHtml;
+        if (mobileStartCard) mobileStartCard.innerHTML = startHtml;
     }
 
     if (endWeather) {
-        endCard.innerHTML = `
+        const endHtml = `
             <div class="weather-location">Destination</div>
-            <img src="https://openweathermap.org/img/wn/${endWeather.weather[0].icon}.png" alt="Weather icon" class="weather-icon">
+            <img src="https://openweathermap.org/img/wn/${endWeather.weather[0].icon}@2x.png" alt="Weather icon" class="weather-icon">
             <div class="weather-temp">${endWeather.main.temp.toFixed(1)}°C</div>
             <div class="weather-desc">${endWeather.weather[0].description}</div>
         `;
+        endCard.innerHTML = endHtml;
+        if (mobileEndCard) mobileEndCard.innerHTML = endHtml;
     }
 }
 
@@ -504,31 +515,39 @@ function initializeMap() {
         // Desktop toggle button handlers
         document.getElementById('accidents-btn').addEventListener('click', function () {
             toggleAccidents();
-            this.classList.toggle('active');
-            // Sync mobile button
+            // Sync mobile button based on current state
             const mobileBtn = document.getElementById('mobile-accidents-btn');
-            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+            if (mobileBtn) {
+                const isActive = this.classList.contains('active');
+                mobileBtn.classList.toggle('active', isActive);
+            }
         });
         document.getElementById('facilities-btn').addEventListener('click', function () {
             toggleFacilities();
-            this.classList.toggle('active');
-            // Sync mobile button
+            // Sync mobile button based on current state
             const mobileBtn = document.getElementById('mobile-facilities-btn');
-            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+            if (mobileBtn) {
+                const isActive = this.classList.contains('active');
+                mobileBtn.classList.toggle('active', isActive);
+            }
         });
         document.getElementById('metro-btn').addEventListener('click', function () {
-            toggleMetro();
-            this.classList.toggle('active');
-            // Sync mobile button
+            toggleMetroStops();
+            // Sync mobile button based on current state
             const mobileBtn = document.getElementById('mobile-metro-btn');
-            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+            if (mobileBtn) {
+                const isActive = this.classList.contains('active');
+                mobileBtn.classList.toggle('active', isActive);
+            }
         });
         document.getElementById('bmtc-btn').addEventListener('click', function () {
-            toggleBmtc();
-            this.classList.toggle('active');
-            // Sync mobile button
+            toggleBmtcRoutes();
+            // Sync mobile button based on current state
             const mobileBtn = document.getElementById('mobile-bmtc-btn');
-            if (mobileBtn) mobileBtn.classList.toggle('active', this.classList.contains('active'));
+            if (mobileBtn) {
+                const isActive = this.classList.contains('active');
+                mobileBtn.classList.toggle('active', isActive);
+            }
         });
 
         // Mobile toggle button handlers
@@ -536,40 +555,48 @@ function initializeMap() {
         if (mobileAccidentsBtn) {
             mobileAccidentsBtn.addEventListener('click', function () {
                 toggleAccidents();
-                this.classList.toggle('active');
-                // Sync desktop button
+                // Sync desktop button based on current state
                 const desktopBtn = document.getElementById('accidents-btn');
-                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+                if (desktopBtn) {
+                    const isActive = desktopBtn.classList.contains('active');
+                    this.classList.toggle('active', isActive);
+                }
             });
         }
         const mobileFacilitiesBtn = document.getElementById('mobile-facilities-btn');
         if (mobileFacilitiesBtn) {
             mobileFacilitiesBtn.addEventListener('click', function () {
                 toggleFacilities();
-                this.classList.toggle('active');
-                // Sync desktop button
+                // Sync desktop button based on current state
                 const desktopBtn = document.getElementById('facilities-btn');
-                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+                if (desktopBtn) {
+                    const isActive = desktopBtn.classList.contains('active');
+                    this.classList.toggle('active', isActive);
+                }
             });
         }
         const mobileMetroBtn = document.getElementById('mobile-metro-btn');
         if (mobileMetroBtn) {
             mobileMetroBtn.addEventListener('click', function () {
-                toggleMetro();
-                this.classList.toggle('active');
-                // Sync desktop button
+                toggleMetroStops();
+                // Sync desktop button based on current state
                 const desktopBtn = document.getElementById('metro-btn');
-                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+                if (desktopBtn) {
+                    const isActive = desktopBtn.classList.contains('active');
+                    this.classList.toggle('active', isActive);
+                }
             });
         }
         const mobileBmtcBtn = document.getElementById('mobile-bmtc-btn');
         if (mobileBmtcBtn) {
             mobileBmtcBtn.addEventListener('click', function () {
-                toggleBmtc();
-                this.classList.toggle('active');
-                // Sync desktop button
+                toggleBmtcRoutes();
+                // Sync desktop button based on current state
                 const desktopBtn = document.getElementById('bmtc-btn');
-                if (desktopBtn) desktopBtn.classList.toggle('active', this.classList.contains('active'));
+                if (desktopBtn) {
+                    const isActive = desktopBtn.classList.contains('active');
+                    this.classList.toggle('active', isActive);
+                }
             });
         }
 
@@ -1247,96 +1274,175 @@ function toggleBmtcRoutes() {
 }
 
 // ========================================
-// Facility Data Visualization (Hospitals & Police)
+// Facility Data Visualization (Hospitals & Police) - WebGL with Custom Icons
 // ========================================
-let facilityMarkers = [];
+let facilityLayersAdded = false;
 
 function addFacilityLayer() {
-    // Clear existing markers if any
-    facilityMarkers.forEach(m => m.marker.remove());
-    facilityMarkers = [];
+    if (facilityLayersAdded) return;
+    facilityLayersAdded = true;
 
+    // Create GeoJSON for hospitals
+    const hospitalsGeojson = {
+        type: 'FeatureCollection',
+        features: HOSPITALS.map(h => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [h.lon, h.lat]
+            },
+            properties: {
+                name: h.name,
+                type: 'hospital'
+            }
+        }))
+    };
+
+    // Create GeoJSON for police stations
+    const policeGeojson = {
+        type: 'FeatureCollection',
+        features: POLICE_STATIONS.map(p => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [p.lon, p.lat]
+            },
+            properties: {
+                name: p.area,
+                type: 'police'
+            }
+        }))
+    };
+
+    // Hospital icon SVG as data URL
+    const hospitalSvg = `<svg width="28" height="36" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="hGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#EF4444"/>
+                <stop offset="100%" stop-color="#B91C1C"/>
+            </linearGradient>
+        </defs>
+        <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 16 12 16s12-7 12-16c0-6.6-5.4-12-12-12z" fill="url(%23hGrad)"/>
+        <rect x="10" y="6" width="4" height="12" rx="0.5" fill="%23fff"/>
+        <rect x="6" y="10" width="12" height="4" rx="0.5" fill="%23fff"/>
+    </svg>`;
+
+    // Police icon SVG as data URL
+    const policeSvg = `<svg width="28" height="36" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="pGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#3B82F6"/>
+                <stop offset="100%" stop-color="#1E3A8A"/>
+            </linearGradient>
+        </defs>
+        <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 16 12 16s12-7 12-16c0-6.6-5.4-12-12-12z" fill="url(%23pGrad)"/>
+        <path d="M12 5l-5 3.5v4c0 3 2 5.5 5 7 3-1.5 5-4 5-7v-4L12 5z" fill="%23fff"/>
+    </svg>`;
+
+    // Load hospital icon
+    const hospitalImg = new Image(28, 36);
+    hospitalImg.onload = () => {
+        if (!map.hasImage('hospital-icon')) {
+            map.addImage('hospital-icon', hospitalImg);
+        }
+    };
+    hospitalImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(hospitalSvg.replace(/%23/g, '#'));
+
+    // Load police icon
+    const policeImg = new Image(28, 36);
+    policeImg.onload = () => {
+        if (!map.hasImage('police-icon')) {
+            map.addImage('police-icon', policeImg);
+        }
+    };
+    policeImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(policeSvg.replace(/%23/g, '#'));
+
+    // Add hospitals source
+    map.addSource('hospitals-data', {
+        type: 'geojson',
+        data: hospitalsGeojson
+    });
+
+    // Add hospital symbol layer with custom icon
+    map.addLayer({
+        id: 'hospitals-layer',
+        type: 'symbol',
+        source: 'hospitals-data',
+        layout: {
+            'visibility': 'none',
+            'icon-image': 'hospital-icon',
+            'icon-size': 0.6,
+            'icon-allow-overlap': true,
+            'icon-anchor': 'bottom'
+        }
+    });
+
+    // Add police source
+    map.addSource('police-data', {
+        type: 'geojson',
+        data: policeGeojson
+    });
+
+    // Add police symbol layer with custom icon
+    map.addLayer({
+        id: 'police-layer',
+        type: 'symbol',
+        source: 'police-data',
+        layout: {
+            'visibility': 'none',
+            'icon-image': 'police-icon',
+            'icon-size': 0.6,
+            'icon-allow-overlap': true,
+            'icon-anchor': 'bottom'
+        }
+    });
+
+    // Popup for facilities
     const popup = new maplibregl.Popup({
         closeButton: false,
-        closeOnClick: false,
-        offset: 25
+        closeOnClick: false
     });
 
-    // Hospitals
-    HOSPITALS.forEach(h => {
-        const el = document.createElement('div');
-        el.className = 'hospital-marker';
-        el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="hGrad${h.lat}" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#EF4444"/>
-                    <stop offset="100%" stop-color="#B91C1C"/>
-                </linearGradient>
-            </defs>
-            <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 16 12 16s12-7 12-16c0-6.6-5.4-12-12-12z" fill="url(#hGrad${h.lat})"/>
-            <rect x="10" y="6" width="4" height="12" rx="0.5" fill="#fff"/>
-            <rect x="6" y="10" width="12" height="4" rx="0.5" fill="#fff"/>
-        </svg>`;
-        el.style.display = 'none';
+    // Hospital hover
+    map.on('mouseenter', 'hospitals-layer', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const name = e.features[0].properties.name;
 
-        const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([h.lon, h.lat])
+        popup.setLngLat(coordinates)
+            .setHTML(`
+                <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
+                    <strong>${name}</strong><br>
+                    <span style="color: #ef4444;">Hospital</span>
+                </div>
+            `)
             .addTo(map);
-
-        el.addEventListener('mouseenter', () => {
-            popup.setLngLat([h.lon, h.lat])
-                .setHTML(`
-                    <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
-                        <strong>${h.name}</strong><br>
-                        <span style="color: #ef4444;">Hospital</span>
-                    </div>
-                `)
-                .addTo(map);
-        });
-
-        el.addEventListener('mouseleave', () => {
-            popup.remove();
-        });
-
-        facilityMarkers.push({ marker, element: el });
     });
 
-    // Police Stations
-    POLICE_STATIONS.forEach(p => {
-        const el = document.createElement('div');
-        el.className = 'police-marker';
-        el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 28" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="pGrad${p.lat}" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#3B82F6"/>
-                    <stop offset="100%" stop-color="#1E3A8A"/>
-                </linearGradient>
-            </defs>
-            <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 16 12 16s12-7 12-16c0-6.6-5.4-12-12-12z" fill="url(#pGrad${p.lat})"/>
-            <path d="M12 5l-5 3.5v4c0 3 2 5.5 5 7 3-1.5 5-4 5-7v-4L12 5z" fill="#fff"/>
-        </svg>`;
-        el.style.display = 'none';
+    map.on('mouseleave', 'hospitals-layer', () => {
+        map.getCanvas().style.cursor = '';
+        popup.remove();
+    });
 
-        const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([p.lon, p.lat])
+    // Police hover
+    map.on('mouseenter', 'police-layer', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const name = e.features[0].properties.name;
+
+        popup.setLngLat(coordinates)
+            .setHTML(`
+                <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
+                    <strong>${name}</strong><br>
+                    <span style="color: #1e3a8a;">Police Station</span>
+                </div>
+            `)
             .addTo(map);
+    });
 
-        el.addEventListener('mouseenter', () => {
-            popup.setLngLat([p.lon, p.lat])
-                .setHTML(`
-                    <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
-                        <strong>${p.area}</strong><br>
-                        <span style="color: #1e3a8a;">Police Station</span>
-                    </div>
-                `)
-                .addTo(map);
-        });
-
-        el.addEventListener('mouseleave', () => {
-            popup.remove();
-        });
-
-        facilityMarkers.push({ marker, element: el });
+    map.on('mouseleave', 'police-layer', () => {
+        map.getCanvas().style.cursor = '';
+        popup.remove();
     });
 }
 
@@ -1344,10 +1450,17 @@ function toggleFacilities() {
     const btn = document.getElementById('facilities-btn');
     const isVisible = btn.getAttribute('data-visible') === 'true';
     const newVisibility = !isVisible;
+    const visibility = newVisibility ? 'visible' : 'none';
 
-    facilityMarkers.forEach(item => {
-        item.element.style.display = newVisibility ? 'flex' : 'none';
-    });
+    // Toggle hospital layer
+    if (map.getLayer('hospitals-layer')) {
+        map.setLayoutProperty('hospitals-layer', 'visibility', visibility);
+    }
+
+    // Toggle police layer
+    if (map.getLayer('police-layer')) {
+        map.setLayoutProperty('police-layer', 'visibility', visibility);
+    }
 
     btn.setAttribute('data-visible', newVisibility);
     const label = btn.querySelector('.btn-label');
@@ -1362,50 +1475,95 @@ function toggleFacilities() {
 }
 
 // ========================================
-// Accident Data Visualization
+// Accident Data Visualization - WebGL with Custom Icons
 // ========================================
-let accidentMarkers = [];
+let accidentLayersAdded = false;
 
 function addAccidentLayer() {
-    accidentMarkers.forEach(m => m.marker.remove());
-    accidentMarkers = [];
+    if (accidentLayersAdded) return;
+    accidentLayersAdded = true;
 
-    const popup = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 25
+    // Create GeoJSON for accidents
+    const accidentsGeojson = {
+        type: 'FeatureCollection',
+        features: ACCIDENT_DATA.map(accident => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [accident.lon, accident.lat]
+            },
+            properties: {
+                area: accident.area,
+                severity: accident.severity
+            }
+        }))
+    };
+
+    // Accident warning triangle icon SVG as data URL
+    const accidentSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3L3 19h18L12 3z" fill="#D97706" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M12 9v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="15.5" r="1" fill="#fff"/>
+    </svg>`;
+
+    // Load accident icon
+    const accidentImg = new Image(24, 24);
+    accidentImg.onload = () => {
+        if (!map.hasImage('accident-icon')) {
+            map.addImage('accident-icon', accidentImg);
+        }
+    };
+    accidentImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(accidentSvg);
+
+    // Add accidents source
+    map.addSource('accidents-data', {
+        type: 'geojson',
+        data: accidentsGeojson
     });
 
-    ACCIDENT_DATA.forEach(accident => {
-        const el = document.createElement('div');
-        el.className = 'accident-marker';
-        el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M12 3L3 19h18L12 3z" fill="#D97706" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>
-            <path d="M12 9v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="12" cy="15.5" r="1" fill="#fff"/>
-        </svg>`;
-        el.style.display = 'none';
+    // Add accident symbol layer with custom triangle icon
+    map.addLayer({
+        id: 'accidents-layer',
+        type: 'symbol',
+        source: 'accidents-data',
+        layout: {
+            'visibility': 'none',
+            'icon-image': 'accident-icon',
+            'icon-size': [
+                'interpolate',
+                ['linear'],
+                ['get', 'severity'],
+                1, 0.5,
+                10, 0.9
+            ],
+            'icon-allow-overlap': true
+        }
+    });
 
-        const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([accident.lon, accident.lat])
+    // Popup for accidents
+    const popup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false
+    });
+
+    map.on('mouseenter', 'accidents-layer', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const { area, severity } = e.features[0].properties;
+
+        popup.setLngLat(coordinates)
+            .setHTML(`
+                <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
+                    <strong>${area}</strong><br>
+                    <span style="color: #ea580c;">Severity: ${severity}/10</span>
+                </div>
+            `)
             .addTo(map);
+    });
 
-        el.addEventListener('mouseenter', () => {
-            popup.setLngLat([accident.lon, accident.lat])
-                .setHTML(`
-                    <div style="padding: 8px; font-family: Inter, sans-serif; color: #000;">
-                        <strong>${accident.area}</strong><br>
-                        <span style="color: #ea580c;">Severity: ${accident.severity}/10</span>
-                    </div>
-                `)
-                .addTo(map);
-        });
-
-        el.addEventListener('mouseleave', () => {
-            popup.remove();
-        });
-
-        accidentMarkers.push({ marker, element: el });
+    map.on('mouseleave', 'accidents-layer', () => {
+        map.getCanvas().style.cursor = '';
+        popup.remove();
     });
 }
 
@@ -1413,8 +1571,13 @@ function toggleAccidents() {
     const btn = document.getElementById('accidents-btn');
     const isVisible = btn.getAttribute('data-visible') === 'true';
     const newVisibility = !isVisible;
+    const visibility = newVisibility ? 'visible' : 'none';
 
-    // Update button state immediately for responsiveness
+    // Toggle accident layer
+    if (map.getLayer('accidents-layer')) {
+        map.setLayoutProperty('accidents-layer', 'visibility', visibility);
+    }
+
     btn.setAttribute('data-visible', newVisibility);
     const label = btn.querySelector('.btn-label');
 
@@ -1425,13 +1588,6 @@ function toggleAccidents() {
         btn.classList.remove('active');
         if (label) label.textContent = 'Accident Zones';
     }
-
-    // Defer heavy marker updates to next frame to avoid blocking INP
-    requestAnimationFrame(() => {
-        accidentMarkers.forEach(item => {
-            item.element.style.display = newVisibility ? 'flex' : 'none';
-        });
-    });
 }
 
 
@@ -1642,8 +1798,11 @@ function selectRoute(routeId) {
 function renderRoutesList(routes) {
     const routesList = document.getElementById('routes-list');
     const routesContainer = document.getElementById('routes-container');
+    const mobileRoutesList = document.getElementById('mobile-routes-list');
+    const mobileRoutesContainer = document.getElementById('mobile-routes-container');
 
     routesList.innerHTML = '';
+    if (mobileRoutesList) mobileRoutesList.innerHTML = '';
 
     routes.forEach((route, index) => {
         const card = document.createElement('div');
@@ -1703,9 +1862,19 @@ function renderRoutesList(routes) {
         });
 
         routesList.appendChild(card);
+
+        // Clone card for mobile list
+        if (mobileRoutesList) {
+            const mobileCard = card.cloneNode(true);
+            mobileCard.addEventListener('click', () => {
+                selectRoute(route.id);
+            });
+            mobileRoutesList.appendChild(mobileCard);
+        }
     });
 
     routesContainer.classList.add('visible');
+    if (mobileRoutesContainer) mobileRoutesContainer.classList.add('visible');
 }
 
 // ========================================
@@ -1922,16 +2091,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupAutocomplete('end-location');
     }
 
-    // Quick Action Buttons
-    const metroBtn = document.getElementById('metro-btn');
-    const bmtcBtn = document.getElementById('bmtc-btn');
-    const accidentsBtn = document.getElementById('accidents-btn');
-    const facilitiesBtn = document.getElementById('facilities-btn');
-
-    if (metroBtn) metroBtn.addEventListener('click', toggleMetroStops);
-    if (bmtcBtn) bmtcBtn.addEventListener('click', toggleBmtcRoutes);
-    if (accidentsBtn) accidentsBtn.addEventListener('click', toggleAccidents);
-    if (facilitiesBtn) facilitiesBtn.addEventListener('click', toggleFacilities);
+    // Quick Action Buttons are handled in initializeMap() after map loads
 
     // SOS Button Handler
     const sosBtn = document.getElementById('sos-btn');
@@ -2653,18 +2813,8 @@ function initMobileBottomSheet() {
     mobileSoloBtn?.addEventListener('click', () => setMobileMode('solo'));
     mobileGroupBtn?.addEventListener('click', () => setMobileMode('group'));
 
-    // ========================================
-    // Mobile Quick Actions
-    // ========================================
-    document.getElementById('mobile-metro-btn')?.addEventListener('click', () => {
-        document.getElementById('metro-btn')?.click();
-    });
-    document.getElementById('mobile-bmtc-btn')?.addEventListener('click', () => {
-        document.getElementById('bmtc-btn')?.click();
-    });
-    document.getElementById('mobile-accidents-btn')?.addEventListener('click', () => {
-        document.getElementById('accidents-btn')?.click();
-    });
+
+    // NOTE: Mobile quick action handlers are set up in initMap() with proper active state toggling
 
     // Expand sheet when inputs are focused
     if (mobileStartInput) {
@@ -2679,6 +2829,9 @@ function initMobileBottomSheet() {
             updateSheetClass(0);
         });
     }
+
+    // Initialize mobile group meet inputs on page load
+    initMobileGroupMeet();
 }
 
 // Initialize mobile group meet for the mobile sheet
@@ -2979,8 +3132,10 @@ function updateAddButtonState() {
 async function findMeetingSpot() {
     const findBtn = document.getElementById('find-meeting-btn');
     const resultsContainer = document.getElementById('meeting-results');
+    const mobileResultsContainer = document.getElementById('mobile-meeting-results');
     const venueList = document.getElementById('venue-list');
-    const category = document.getElementById('venue-category')?.value || 'cafe';
+    const mobileVenueList = document.getElementById('mobile-venue-list');
+    const category = document.getElementById('venue-category')?.value || document.getElementById('mobile-venue-category')?.value || 'cafe';
 
     // Validate locations
     const validLocations = groupLocations.filter(p => p.lat && p.lon);
@@ -3027,14 +3182,18 @@ async function findMeetingSpot() {
         })));
 
         if (venues.length === 0) {
-            if (venueList) venueList.innerHTML = '<p style="color: rgba(255,255,255,0.5); text-align: center;">No venues found. Try a different category.</p>';
+            const noVenuesMsg = '<p style="color: rgba(255,255,255,0.5); text-align: center;">No venues found. Try a different category.</p>';
+            if (venueList) venueList.innerHTML = noVenuesMsg;
+            if (mobileVenueList) mobileVenueList.innerHTML = noVenuesMsg;
             if (resultsContainer) resultsContainer.classList.remove('hidden');
+            if (mobileResultsContainer) mobileResultsContainer.classList.remove('hidden');
             return;
         }
 
         // Display venues
         renderVenueList(venues, locationsWithCoords);
         if (resultsContainer) resultsContainer.classList.remove('hidden');
+        if (mobileResultsContainer) mobileResultsContainer.classList.remove('hidden');
 
         // Show markers and routes on map
         await showGroupOnMap(locationsWithCoords, venues[0]);
@@ -3052,9 +3211,10 @@ async function findMeetingSpot() {
 
 function renderVenueList(venues, userLocations) {
     const venueList = document.getElementById('venue-list');
-    if (!venueList) return;
+    const mobileVenueList = document.getElementById('mobile-venue-list');
 
-    venueList.innerHTML = '';
+    if (venueList) venueList.innerHTML = '';
+    if (mobileVenueList) mobileVenueList.innerHTML = '';
 
     venues.forEach((venue, index) => {
         const card = document.createElement('div');
@@ -3083,8 +3243,8 @@ function renderVenueList(venues, userLocations) {
         `;
 
         card.addEventListener('click', async () => {
-            // Update selection
-            venueList.querySelectorAll('.venue-card').forEach(c => c.classList.remove('selected'));
+            // Update selection on both desktop and mobile
+            document.querySelectorAll('.venue-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
             selectedVenue = venue;
 
@@ -3092,7 +3252,19 @@ function renderVenueList(venues, userLocations) {
             await showGroupOnMap(userLocations, venue);
         });
 
-        venueList.appendChild(card);
+        if (venueList) venueList.appendChild(card);
+
+        // Clone card for mobile list
+        if (mobileVenueList) {
+            const mobileCard = card.cloneNode(true);
+            mobileCard.addEventListener('click', async () => {
+                document.querySelectorAll('.venue-card').forEach(c => c.classList.remove('selected'));
+                mobileCard.classList.add('selected');
+                selectedVenue = venue;
+                await showGroupOnMap(userLocations, venue);
+            });
+            mobileVenueList.appendChild(mobileCard);
+        }
     });
 }
 

@@ -120,8 +120,11 @@
 
                 <!-- Weather Widget -->
                 <div id="weather-container" class="weather-widget hidden">
-                    <div id="start-weather" class="weather-card"></div>
-                    <div id="end-weather" class="weather-card"></div>
+                    <div class="weather-section-header">Current Weather</div>
+                    <div class="weather-cards-row">
+                        <div id="start-weather" class="weather-card"></div>
+                        <div id="end-weather" class="weather-card"></div>
+                    </div>
                 </div>
 
                 <!-- Routes List -->
@@ -311,6 +314,15 @@
                             </svg>
                             Safety
                         </button>
+                    </div>
+
+                    <!-- Weather Widget (Mobile) -->
+                    <div id="mobile-weather-container" class="weather-widget hidden">
+                        <div class="weather-section-header">Current Weather</div>
+                        <div class="weather-cards-row">
+                            <div id="mobile-start-weather" class="weather-card"></div>
+                            <div id="mobile-end-weather" class="weather-card"></div>
+                        </div>
                     </div>
 
                     <!-- Routes List -->
